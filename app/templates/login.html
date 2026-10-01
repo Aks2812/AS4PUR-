@@ -1,0 +1,76 @@
+{#
+  Login page - full rebuild to docs/design-system.md Sections 12-20
+  (2026-09-16). Shares the exact same brand panel as landing.html via
+  partials/brand_panel.html (Section 12: "don't create a second
+  interpretation of the brand").
+
+  "Back to AS4PUR" corner link (2026-09-17) - .login-back-link
+  (style.css) positions it absolutely in the top-left of this white
+  panel, independent of .login-container's own centered flex flow, so
+  it can never shift the form's vertical centering. .back-link itself
+  (color/arrow/hover) is the exact same class the wizard steps use -
+  unrestyled here, only the positioning wrapper is new.
+#}
+{% extends "base.html" %}
+{% import "partials/icons.html" as icons %}
+{% block title %}Login — {{ app_name }}{% endblock %}
+{% block main_class %}brand-shell-page{% endblock %}
+{% block content %}
+<div class="brand-shell">
+  {% include "partials/brand_panel.html" %}
+  <div class="content-panel login-panel">
+    <a href="/" class="back-link login-back-link"><span aria-hidden="true">&larr;</span>Back to {{ app_name }}</a>
+    <div class="login-container">
+      <div class="login-heading">
+        <h1>Sign in</h1>
+        <p>Access your account to continue to {{ app_name }}.</p>
+      </div>
+
+      <form method="post" action="/login" class="login-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+        <div class="login-field">
+          <label class="login-label" for="login-username">Username</label>
+          <div class="login-input-wrap">
+            <span class="login-input-icon">{{ icons.ti_icon("user") }}</span>
+            <input
+              class="login-input"
+              type="text"
+              id="login-username"
+              name="username"
+              placeholder="Enter your username"
+              autocomplete="username"
+              required
+              autofocus
+            >
+          </div>
+        </div>
+
+        <div class="login-field login-field-password">
+          <label class="login-label" for="login-password">Password</label>
+          <div class="login-input-wrap">
+            <span class="login-input-icon">{{ icons.ti_icon("lock") }}</span>
+            <input
+              class="login-input"
+              type="password"
+              id="login-password"
+              name="password"
+              placeholder="Enter your password"
+              autocomplete="current-password"
+              required
+            >
+            <button type="button" class="login-password-toggle" aria-label="Show password">
+              {{ icons.ti_icon("eye") }}
+            </button>
+          </div>
+        </div>
+
+        {% if error %}<p class="login-error">&#9888; {{ error }}</p>{% endif %}
+
+        <button type="submit" class="login-submit">Sign in <span aria-hidden="true">&rarr;</span></button>
+      </form>
+    </div>
+  </div>
+</div>
+<script src="/static/js/login.js"></script>
+{% endblock %}

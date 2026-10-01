@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Private app definition — Review — {{ app_name }}{% endblock %}
+{% block content %}
+<h1>Private app definition</h1>
+<p class="step-indicator">Step 4 of 4 &middot; Review &middot; Tenant: {{ tenant }} &middot; File: {{ filename }}</p>
+
+{% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+
+<div class="summary-counts">
+  <span class="count-pill count-create">{{ summary.will_create }} will be created</span>
+  <span class="count-pill count-skip">{{ summary.skipped_exists }} skipped (already exists)</span>
+  <span class="count-pill count-exclude">{{ summary.validation_excluded }} invalid (excluded)</span>
+</div>
+
+{% if summary.warnings %}
+<details class="warnings-block">
+  <summary>{{ summary.warnings|length }} warning(s) - rows are still included, review before proceeding</summary>
+  <ul>{% for w in summary.warnings %}<li>{{ w }}</li>{% endfor %}</ul>
+</details>
+{% endif %}
+
+<div class="table-scroll">
+<table class="data-table">
+  <thead><tr><th>Row</th><th>App name</th><th>Hosts</th><th>Status</th><th>Detail</th></tr></thead>
+  <tbody>
+    {% for row in summary.rows %}
+    <tr>
+      <td>{{ row.row_no }}</td>
+      <td>{{ row.app_name }}</td>
+      <td>{{ row.hosts|join(", ") }}</td>
+      <td><span class="status-badge status-{{ row.status|lower }}">{{ row.status }}</span></td>
+      <td>
+        {% if row.status == "SKIPPED_EXISTS" and row.collision_host %}
+          Destination <code>{{ row.collision_host }}</code> port <code>{{ row.collision_port }}</code> already exists on another app in this tenant - Netskope would silently merge this row into it rather than create something new, so it's skipped instead. (An app at the same destination with genuinely different ports is fine and won't be flagged - different users can have different port-level access to the same host.)
+        {% elif row.status == "SKIPPED_EXISTS" and row.collision_name %}
+          App name <code>{{ row.collision_name }}</code> already exists in this tenant - reusing it would silently merge this row's destination into that existing app rather than create a new one, so it's skipped instead.
+        {% elif row.status == "VALIDATION_EXCLUDED" %}
+          {{ row.exclusion_reason }}
+        {% else %}
+          &mdash;
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+
+<form method="post" action="{{ action }}" class="stacked-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <label class="review-gate">
+    <input type="checkbox" name="reviewed" value="yes" data-confirm-gate>
+    I have reviewed the results above.
+  </label>
+  <button type="submit">Proceed &mdash; create {{ summary.will_create }} app(s)</button>
+</form>
+<script src="/static/js/confirm-gate.js"></script>
+{% include "partials/back_link.html" %}
+{% endblock %}

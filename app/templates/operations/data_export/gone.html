@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}Data Export — {{ app_name }}{% endblock %}
+{% block content %}
+<h1>That export is no longer available</h1>
+<p>Finished exports are held in memory for {{ ttl_minutes }} minutes and are never saved on the server, so this one has been discarded (or was never produced, or belongs to a different session). Please run the export again.</p>
+<p><a href="{{ restart_url }}">Run the export again &rarr;</a></p>
+{% endblock %}

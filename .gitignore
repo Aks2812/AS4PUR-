@@ -1,0 +1,95 @@
+# ---------------------------------------------------------------------------
+# Local-only working files. They stay on disk and are never tracked.
+# Anchored to the repository root on purpose: an unanchored "tests" would also
+# hide any app/**/tests directory or vendored package.
+# ---------------------------------------------------------------------------
+/.claude/
+/tests/
+/CLAUDE.md
+/design-spec-raw.md
+/T&T.md
+
+# ---------------------------------------------------------------------------
+# Secrets and per-machine configuration (only .env.example is tracked)
+# ---------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+
+# Key and certificate material
+*.pem
+*.key
+*.pfx
+*.p12
+
+# ---------------------------------------------------------------------------
+# Runtime state written by the app (app/config.py: database_path and
+# upload_temp_dir both default to ./data/...). Real data, never tracked.
+# ---------------------------------------------------------------------------
+/data/
+*.db
+*.sqlite
+*.sqlite3
+*.db-wal
+*.db-shm
+*.db-journal
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite-journal
+*.sqlite3-wal
+*.sqlite3-shm
+*.sqlite3-journal
+
+# Output of the reference scripts when run from the repo root: reference_scripts/
+# netskope_scim_manager.py can save a plaintext token to ./.scim_token, and
+# netskope_bulk_import.sh writes real tenant data to ./netskope_import_work_v2/.
+.scim_token
+/netskope_import_work_v2/
+
+# Logs and backups
+*.log
+*.bak
+
+# Developer-only live check of Data Export against one lab tenant; kept locally, not part of the product.
+/scripts/data_export_live_check.py
+
+# Full-page design mock-ups kept locally only: no page loads them (only
+# landing-illustration.png is used), and they carry embedded content-credential
+# metadata. Anchored so no other image is affected.
+/app/static/images/as4pur-landing-artefact.png
+/app/static/images/as4pur-login-artefact.png
+
+# Recon captures of real Netskope responses (redacted, but still tenant data) - never tracked
+recon_scratch/
+
+# ---------------------------------------------------------------------------
+# Python
+# ---------------------------------------------------------------------------
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.egg-info/
+
+# Tool caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# ---------------------------------------------------------------------------
+# Browser-test artifacts (Playwright) and saved browser state
+# ---------------------------------------------------------------------------
+test-results/
+playwright-report/
+blob-report/
+/playwright/.cache/
+storage_state*.json
+*storage-state*.json
+*.storage_state.json
+
+# ---------------------------------------------------------------------------
+# Editors and OS
+# ---------------------------------------------------------------------------
+.vscode/
+Thumbs.db
+.DS_Store

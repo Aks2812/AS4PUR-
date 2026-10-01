@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Run detail — {{ app_name }}{% endblock %}
+{% block content %}
+<h1>Run detail</h1>
+<dl class="job-meta">
+  <dt>Type</dt><dd>{{ job.job_type | job_type_label }}</dd>
+  <dt>Tenant</dt><dd>{{ job.tenant }}</dd>
+  <dt>Run by</dt><dd>{{ job.created_by_username }}</dd>
+  <dt>Started</dt><dd>{{ job.created_at.strftime("%Y-%m-%d %H:%M:%S") }}</dd>
+  {% if job.input_filename %}<dt>Input file</dt><dd>{{ job.input_filename }}</dd>{% endif %}
+</dl>
+
+<div id="job-status">
+  <p>Status: <span id="job-status-text">{{ job.status.value }}</span></p>
+  <progress id="job-progress" max="{{ job.total_items or 1 }}" value="{{ job.processed_items }}"></progress>
+  <p><span id="job-counts">{{ job.success_count }} succeeded &middot; {{ job.skipped_count }} skipped &middot; {{ job.failed_count }} failed</span> of <span id="job-total">{{ job.total_items }}</span></p>
+  {% if job.error_message %}<div class="alert alert-error">{{ job.error_message }}</div>{% endif %}
+  {% if job.summary %}<div class="alert alert-warn">{{ job.summary }}</div>{% endif %}
+</div>
+
+<p><a href="/jobs/{{ job.id }}/export.csv">Download full report (CSV)</a></p>
+
+{% if job.items %}
+<h2>Row-by-row detail</h2>
+<div class="table-scroll">
+<table class="data-table">
+  <thead><tr><th>Item</th><th>Status</th><th>Detail</th><th>When</th></tr></thead>
+  <tbody>
+    {% for item in job.items %}
+    <tr>
+      <td>{{ item.item_key }}</td>
+      <td><span class="status-badge status-{{ item.status|lower }}">{{ item.status }}</span></td>
+      <td>{{ item.detail or "—" }}</td>
+      <td>{{ item.created_at.strftime("%H:%M:%S") }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+<p><a href="/jobs">&larr; Back to Audit History</a></p>
+
+<script src="/static/js/job-poll.js" data-job-id="{{ job.id }}"></script>
+{% endblock %}

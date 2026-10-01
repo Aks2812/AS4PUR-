@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Invite Not Available — {{ app_name }}{% endblock %}
+{% block content %}
+{% if reason == "used" %}
+<h1>This invite has already been used</h1>
+<p>An account was already created with this invite link. If that wasn't you, contact an administrator.</p>
+{% elif reason == "expired" %}
+<h1>This invite has expired</h1>
+<p>This invite link is no longer valid - it either passed its 72-hour window or was revoked by an administrator. Ask an administrator to send you a new one.</p>
+{% else %}
+<h1>This invite link isn't valid</h1>
+<p>This link doesn't match any invite AS4PUR knows about - check that it was copied in full, or ask an administrator to send you a new one.</p>
+{% endif %}
+<p><a href="/login">Go to login &rarr;</a></p>
+{% endblock %}

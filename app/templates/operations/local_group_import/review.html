@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}User provision — Review — {{ app_name }}{% endblock %}
+{% block content %}
+<h1>User provision</h1>
+<p class="step-indicator">Step 4 of 4 &middot; Review &middot; Tenant: {{ tenant }} &middot; File: {{ filename }}</p>
+
+{% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+{% if group_note %}<div class="alert alert-warn">{{ group_note }}</div>{% endif %}
+
+<p>
+  {% if group_mode == "none" %}
+    No group will be assigned - users only.
+  {% elif group_mode == "create" %}
+    A new group named <strong>{{ group_name }}</strong> will be created, and every user below will be added to it.
+  {% elif group_mode == "existing" %}
+    Every user below will be added to the existing group{% if group_name %} <strong>{{ group_name }}</strong>{% endif %}.
+  {% endif %}
+</p>
+
+<div class="summary-counts">
+  <span class="count-pill count-create">{{ summary.will_create }} will be created</span>
+  <span class="count-pill count-skip">{{ summary.skipped_exists }} already exists (will skip creation)</span>
+  <span class="count-pill count-exclude">{{ summary.validation_excluded }} invalid (excluded)</span>
+</div>
+
+<div class="table-scroll">
+<table class="data-table">
+  <thead><tr><th>Row</th><th>Email</th><th>Status</th><th>Detail</th></tr></thead>
+  <tbody>
+    {% for row in summary.rows %}
+    <tr>
+      <td>{{ row.row_no }}</td>
+      <td>{{ row.email }}</td>
+      <td><span class="status-badge status-{{ row.status|lower }}">{{ row.status }}</span></td>
+      <td>
+        {% if row.status == "SKIPPED_EXISTS" %}
+          This user already exists in the tenant - creation will be skipped{% if group_mode != "none" %}, but they will still be added to the group{% endif %}.
+        {% elif row.status == "VALIDATION_EXCLUDED" %}
+          {{ row.exclusion_reason }}
+        {% else %}
+          &mdash;
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+
+<form method="post" action="{{ action }}" class="stacked-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <label class="review-gate">
+    <input type="checkbox" name="reviewed" value="yes" data-confirm-gate>
+    I have reviewed the results above.
+  </label>
+  <button type="submit">Proceed &mdash; create {{ summary.will_create }} user(s)</button>
+</form>
+<script src="/static/js/confirm-gate.js"></script>
+{% include "partials/back_link.html" %}
+{% endblock %}

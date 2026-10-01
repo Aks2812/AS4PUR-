@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}RTP creation — Review Rule — {{ app_name }}{% endblock %}
+{% block content %}
+<h1>RTP creation</h1>
+<p class="step-indicator">Review Gate 2 of 2 &middot; Rule creation &middot; Tenant: {{ tenant }}</p>
+
+{% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+
+<div class="format-explainer">
+  <h2>About to create</h2>
+  <dl class="job-meta">
+    <dt>Rule name</dt><dd>{{ rule_name }}</dd>
+    <dt>Policy group</dt><dd>{{ group_id }}</dd>
+    <dt>Access method</dt><dd>{{ access_method }}</dd>
+    <dt>Private app(s)</dt><dd>{{ private_apps | join(", ") }}</dd>
+    <dt>Users</dt><dd>{{ matched_count }} matched user(s) will be granted access &middot; {{ unmatched_count }} unmatched user(s) excluded</dd>
+  </dl>
+  <p class="hint">The rule is always created <strong>disabled</strong>. Enabling it afterward is a separate, deliberate step you take once you've checked it visually in the Netskope UI - this app never enables a rule automatically.</p>
+</div>
+
+<form method="post" action="{{ action }}" class="stacked-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <label class="review-gate">
+    <input type="checkbox" name="reviewed" value="yes" data-confirm-gate>
+    I have reviewed the results above.
+  </label>
+  <button type="submit">Create rule (disabled)</button>
+</form>
+<script src="/static/js/confirm-gate.js"></script>
+{% include "partials/back_link.html" %}
+{% endblock %}

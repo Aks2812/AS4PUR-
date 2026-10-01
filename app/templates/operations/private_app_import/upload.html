@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Private app definition — {{ app_name }}{% endblock %}
+{% block content %}
+<h1>Private app definition</h1>
+<p class="step-indicator">Step 3 of 4 &middot; Upload file &middot; Tenant: {{ tenant }}</p>
+
+{% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+
+{% include "partials/previously_processed.html" %}
+
+<div class="format-explainer">
+  <h2>Expected file format</h2>
+  <p>An Excel (.xlsx) file with a header row containing exactly these columns: <code>No</code>, <code>App Name</code>, <code>Hosts (IP/CIDR)</code>, <code>Ports (Protocol/Port)</code>.</p>
+  <ul>
+    <li><strong>Hosts</strong> accepts, comma-separated: a plain IP, a CIDR block, a full range (<code>10.0.0.1-10.0.0.20</code>), a shorthand last-octet range (<code>10.0.0.1-20</code>), an FQDN, or a labeled host (<code>LABEL-10.0.0.1/32</code>).</li>
+    <li><strong>Ports</strong> accepts, comma-separated: <code>tcp/443</code> or a range like <code>tcp/8000-8010</code>.</li>
+  </ul>
+  <p><a href="/operations/private-app-import/template.xlsx">Download a starter template &darr;</a></p>
+</div>
+
+<form method="post" action="{{ action }}" enctype="multipart/form-data" class="stacked-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <label>Excel file
+    <input type="file" name="file" accept=".xlsx" required>
+  </label>
+  <button type="submit">Analyze file</button>
+</form>
+{% include "partials/back_link.html" %}
+{% endblock %}

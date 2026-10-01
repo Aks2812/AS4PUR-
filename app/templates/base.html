@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ app_name }}{% endblock %}</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+  {% if request.state.session %}
+  {% import "partials/icons.html" as icons %}
+  {% set current_path = request.url.path %}
+  {#
+    Which operation wizard (if any) the current page belongs to - drives
+    Section 4's "the operation shows as the active sidebar item, using
+    its own icon, instead of Dashboard" requirement (2026-09-13 UI/UX
+    pass). Path-prefix matching, same convention as the active-nav checks
+    below, so a sub-step deep in a wizard (e.g. /operations/rtp-creation/
+    review-rule) still resolves back to that operation's own top-level
+    entry, not Dashboard.
+  #}
+  {% set current_op = None %}
+  {% if current_path.startswith("/operations/private-app-import") %}
+    {% set current_op = {"label": "Private app definition", "icon": "upload", "href": "/operations/private-app-import"} %}
+  {% elif current_path.startswith("/operations/local-group-import") %}
+    {% set current_op = {"label": "User provision", "icon": "users", "href": "/operations/local-group-import"} %}
+  {% elif current_path.startswith("/operations/rtp-creation") %}
+    {% set current_op = {"label": "RTP creation", "icon": "lock", "href": "/operations/rtp-creation"} %}
+  {% elif current_path.startswith("/operations/device-posture") %}
+    {% set current_op = {"label": "Device Posture Validation", "icon": "device-laptop", "href": "/operations/device-posture"} %}
+  {% elif current_path.startswith("/operations/data-export") %}
+    {% set current_op = {"label": "Data Export", "icon": "download", "href": "/operations/data-export"} %}
+  {% endif %}
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="sidebar-brand" href="/">
+        <img src="/static/icons/as4pur-mark.svg" width="24" height="24" alt="AS4PUR">
+        <span>{{ app_name }}</span>
+      </a>
+      {% if not request.state.session.user.must_change_password %}
+      <nav class="sidebar-nav">
+        <a class="sidebar-link{% if current_path == "/" %} active{% endif %}" href="/">
+          {{ icons.ti_icon("home") }}<span>Dashboard</span>
+        </a>
+        {% if current_op %}
+        <a class="sidebar-link active" href="{{ current_op.href }}">
+          {{ icons.ti_icon(current_op.icon) }}<span>{{ current_op.label }}</span>
+        </a>
+        {% endif %}
+        <a class="sidebar-link{% if current_path.startswith("/jobs") %} active{% endif %}" href="/jobs">
+          {{ icons.ti_icon("history") }}<span>Audit History</span>
+        </a>
+        {% if request.state.session.user.role.value == "admin" %}
+        <a class="sidebar-link{% if current_path.startswith("/admin") %} active{% endif %}" href="/admin">
+          {{ icons.ti_icon("settings") }}<span>Admin</span>
+        </a>
+        {% endif %}
+        <a class="sidebar-link{% if current_path.startswith("/help") %} active{% endif %}" href="/help">
+          {{ icons.ti_icon("help") }}<span>Help</span>
+        </a>
+      </nav>
+      {% endif %}
+      <form method="post" action="/logout" class="sidebar-logout">
+        <input type="hidden" name="csrf_token" value="{{ request.state.session.csrf_secret }}">
+        <span class="whoami">{{ request.state.session.user.username }} &middot; {{ request.state.session.user.role.value }}</span>
+        <button type="submit" class="link-button">Logout</button>
+      </form>
+    </aside>
+    <div class="app-main">
+      <main class="{% block main_class %}container{% endblock %}">
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </div>
+  {% else %}
+  {#
+    No session yet (login, registration, the mandatory set-password page
+    before must_change_password clears) - no sidebar to show. Re-renders
+    the SAME `main_class`/`content` blocks defined above via `self.*()`
+    (Jinja doesn't inherit a `{% block %}` tag's definition across two
+    literal appearances in one template) so a child template only ever
+    overrides one `main_class`/`content` pair regardless of which branch
+    actually renders it.
+  #}
+  <div class="app-shell">
+    <div class="app-main">
+      <main class="{{ self.main_class() }}">
+        {{ self.content() }}
+      </main>
+    </div>
+  </div>
+  {% endif %}
+</body>
+</html>

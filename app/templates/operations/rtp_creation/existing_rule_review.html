@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}RTP creation — Add Users to Existing Rule — {{ app_name }}{% endblock %}
+{% block content %}
+<h1>RTP creation — Add Users to Existing Rule</h1>
+<p class="step-indicator">Review Gate 2 of 2 &middot; Merge preview &middot; Tenant: {{ tenant }}</p>
+
+{% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+
+{% if target_rule.enabled %}
+<div class="alert alert-warn">
+  <strong>This rule is currently ENABLED.</strong> Adding these users will grant them live access immediately once you confirm below - there is no disabled buffer period like new-rule creation.
+</div>
+{% endif %}
+
+{% if preview.stale_existing_users %}
+<div class="alert alert-warn">
+  <strong>{{ preview.stale_existing_users | length }} existing user(s) no longer resolve in this tenant's directory and will be removed as part of this update</strong> (Netskope rejects the entire array if any value is stale):
+  <ul>{% for u in preview.stale_existing_users %}<li>{{ u }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+<div class="format-explainer">
+  <h2>Rule {{ target_rule.rule_id }} — {{ target_rule.rule_name }}</h2>
+  <p>Rule currently has {{ preview.current_users | length }} user(s). {{ preview.already_present | length }} of the resolved users are already present, no change. {{ preview.new_users | length }} new user(s) will be added{% if preview.stale_existing_users %}, {{ preview.stale_existing_users | length }} existing user(s) will be removed as stale{% endif %}, bringing the total to {{ preview.merged_users | length }}.</p>
+  <div class="summary-counts">
+    <span class="count-pill count-skip">{{ preview.already_present | length }} already present</span>
+    <span class="count-pill count-create">{{ preview.new_users | length }} new — will be added</span>
+    {% if preview.stale_existing_users %}
+    <span class="count-pill count-exclude">{{ preview.stale_existing_users | length }} stale — will be removed</span>
+    {% endif %}
+  </div>
+</div>
+
+<div class="table-scroll">
+<table class="data-table">
+  <thead><tr><th>Resolved user</th><th>Status</th></tr></thead>
+  <tbody>
+    {% for email in preview.already_present %}
+    <tr><td>{{ email }}</td><td><span class="status-badge status-skipped_exists">ALREADY PRESENT</span></td></tr>
+    {% endfor %}
+    {% for email in preview.new_users %}
+    <tr><td>{{ email }}</td><td><span class="status-badge status-will_create">WILL BE ADDED</span></td></tr>
+    {% endfor %}
+    {% for email in preview.stale_existing_users %}
+    <tr><td>{{ email }}</td><td><span class="status-badge status-not_found">STALE — WILL BE REMOVED</span></td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+
+<p class="hint">This comes from Stage A's identity resolution above: {{ preview.matched_emails | length }} user(s) were matched from the uploaded file. Unmatched and ambiguous rows from Stage A are excluded here too, same as they're excluded from a newly-created rule.</p>
+
+<form method="post" action="{{ action }}" class="stacked-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <label class="review-gate">
+    <input type="checkbox" name="reviewed" value="yes" data-confirm-gate>
+    I have reviewed the results above.
+  </label>
+  <button type="submit">Add {{ preview.new_users | length }} user(s) to this rule</button>
+</form>
+<script src="/static/js/confirm-gate.js"></script>
+{% include "partials/back_link.html" %}
+{% endblock %}

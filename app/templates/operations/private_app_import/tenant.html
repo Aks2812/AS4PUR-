@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Private app definition — {{ app_name }}{% endblock %}
+{% block content %}
+<h1>Private app definition</h1>
+<p class="step-indicator">Step 1 of 4 &middot; Tenant &amp; token</p>
+
+{% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+
+{% include "partials/tenant_token_form.html" %}
+{% endblock %}

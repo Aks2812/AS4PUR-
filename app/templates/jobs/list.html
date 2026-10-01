@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Audit History — {{ app_name }}{% endblock %}
+{% block content %}
+<h1>Audit History</h1>
+{% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+
+{% if not jobs %}
+<p>No operations have been run yet. Once Private app definition, RTP creation, or User provision runs are recorded here, they'll show up as rows in this list.</p>
+{% else %}
+<div class="table-scroll">
+<table class="data-table">
+  <thead>
+    <tr><th>Started</th><th>Type</th><th>Tenant</th><th>Status</th><th>Run by</th><th>Success</th><th>Skipped</th><th>Failed</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for job in jobs %}
+    <tr>
+      <td>{{ job.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
+      <td>{{ job.job_type | job_type_label }}</td>
+      <td>{{ job.tenant }}</td>
+      <td><span class="status-badge status-{{ job.status.value }}">{{ job.status.value }}</span></td>
+      <td>{{ job.created_by_username }}</td>
+      <td>{{ job.success_count }}</td>
+      <td>{{ job.skipped_count }}</td>
+      <td>{{ job.failed_count }}</td>
+      <td><a href="/jobs/{{ job.id }}">Details</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+{% endblock %}

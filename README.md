@@ -1,0 +1,260 @@
+# AS4PUR
+
+AS4PUR is an internal web portal that wraps five Netskope administration operations in a browser UI: Private App Import, RTP (NPA policy) Creation, Local Group / User Import, Device Posture Validation and Data Export. It adds a real login, review gates before every write, and an audit trail. It is a FastAPI application with server-rendered Jinja2 pages and a SQLite database.
+
+It is built for a private network (LAN, VPN or zero-trust access) behind a TLS-terminating reverse proxy. **Do not expose it to the internet.** Netskope tenant names and API tokens are typed in by the operator for each run and are never stored.
+
+**Verification legend.** Commands in this file are tagged on their first line:
+
+- `[verified]` - the same step was run in a fresh clone of this repository, on Windows, with Python 3.11 and with Python 3.12 (the Windows equivalent of each path, for example `.venv\Scripts\python.exe` for `.venv/bin/python`).
+- `[not executed]` - written from the repository's deploy files and standard tooling, and never run. Nothing in this document was run on Ubuntu.
+
+## Requirements
+
+- **OS:** Ubuntu Server 22.04 LTS or newer is the target. Any Linux with systemd and nginx should work, but only Ubuntu is described here.
+- **Python:** 3.11 or 3.12 (Ubuntu 24.04's default `python3` is 3.12). **Not 3.10:** `requirements.txt` pins `websockets==17.1`, which needs Python 3.11 or newer and has no wheel for 3.10, so `pip install -r requirements.txt` fails there; that includes the default `python3` of Ubuntu 22.04, where you would first need a newer Python alongside the system one (not covered here). Evidence for 3.11 and 3.12: `pip download --only-binary=:all:` for Linux x86_64 (manylinux, up to glibc 2.35) found a ready-made wheel for every pinned package, including `uvloop`, `greenlet`, `pydantic-core` and `argon2-cffi-bindings`, so no compiler is needed; and the application was installed from the exact pins, migrated and run from a fresh clone on both (on Windows). **Not checked:** Python 3.13 or newer, and any CPU other than x86_64 (for example ARM cloud instances).
+- **System packages (Ubuntu):** `git`, `python3-venv`, `python3-pip`, and `nginx` for the reverse proxy.
+- **Network:** outbound HTTPS to the Netskope API host of each tenant you operate (`<tenant>.goskope.com`).
+- **Playwright:** not needed to run AS4PUR. It is only used by browser regression tests, and the test suite is not part of this repository. If you run such tests elsewhere: `pip install -r requirements-dev.txt`, then `python -m playwright install chromium`, plus the browser's system libraries on Ubuntu (`sudo python -m playwright install-deps chromium`). `requirements-dev.txt` holds test-only packages; the server installs `requirements.txt` only.
+
+```
+# [not executed]
+sudo apt update
+sudo apt install -y git python3-venv python3-pip nginx
+```
+
+## Install
+
+Steps for a quick start on any machine. The hosting sections below use the same steps under a dedicated service user.
+
+```
+# [verified]  (Windows form: py -3.12 -m venv .venv, then .venv\Scripts\python.exe ...)
+git clone <REPO_URL> as4pur
+cd as4pur
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+cp .env.example .env
+```
+
+`requirements.txt` holds exact pins (`==`) for every runtime package, direct and indirect, equal to the versions the test suite ran against (Python 3.12), so an install is the tested one. Three entries could not come from that environment because it is Windows on 3.12: `uvloop` (Linux only), and `exceptiongroup` and `tomli` (Python 3.10 only, so unused on the supported versions); they are the newest versions pip resolved when the pins were set. Test-only packages are in `requirements-dev.txt`. To update a pin: change it, run the tests, and re-check that a wheel exists for each supported Python.
+
+## Configuration
+
+Settings are read from `.env` (copy `.env.example`) or from real environment variables, all with the `AS4PUR_` prefix. `.env` is read once at startup, so a change needs a restart. **None of these settings is a secret.** The app has no signing key, no pepper and no seeded account: session, CSRF and invite tokens are generated at runtime and stored server-side (hashed). Keep `.env` out of git anyway (it is ignored) and readable only by the service user.
+
+| Variable | Meaning | Default | Required / secret |
+|---|---|---|---|
+| `AS4PUR_DATABASE_PATH` | SQLite database file. The parent directory is created if missing. Use an absolute path on persistent storage in production. | `./data/as4pur.db` | optional, not secret |
+| `AS4PUR_SESSION_LIFETIME_MINUTES` | Idle session timeout; every request extends it. | `30` | optional, not secret |
+| `AS4PUR_SECURE_COOKIES` | Mark the session and CSRF cookies `Secure`. Keep `true` in every real deployment. Set `false` only to test over plain `http://`; a browser then refuses `Secure` cookies and login appears not to stick. This is a setting, not derived from the request scheme, so it works behind a TLS-terminating proxy or load balancer. | `true` | optional, not secret |
+| `AS4PUR_LOGIN_RATE_LIMIT_ATTEMPTS` | Failed logins allowed per window before a lock-out. In-memory; resets on restart. | `5` | optional, not secret |
+| `AS4PUR_LOGIN_RATE_LIMIT_WINDOW_MINUTES` | Window for the limit above. | `15` | optional, not secret |
+| `AS4PUR_UPLOAD_MAX_BYTES` | Size limit for Excel/CSV uploads. | `10485760` (10 MiB) | optional, not secret |
+| `AS4PUR_NSDEBUG_UPLOAD_MAX_BYTES` | Size limit for nsdebug.log uploads (Device Posture Validation). Keep nginx `client_max_body_size` above it. | `52428800` (50 MiB) | optional, not secret |
+| `AS4PUR_UPLOAD_TEMP_DIR` | Where uploads are held while they are processed; files are deleted afterwards. | `./data/uploads_tmp` | optional, not secret |
+| `AS4PUR_DATA_EXPORT_PAGE_SIZE` | Rows per users/groups request in Data Export, 1-200. Values outside the range stop the app from starting. | `200` | optional, not secret |
+| `AS4PUR_INVITE_ALLOWED_DOMAINS` | Email domains an admin may invite from `/admin`: comma-separated, case-insensitive, for example `example.com,example.org`. **Empty or missing refuses every invite** (the admin page says so) until it is set. | empty | **required to invite anyone**, not secret |
+| `AS4PUR_ENABLE_API_DOCS` | Set to `1` to serve FastAPI's interactive docs (`/docs`, `/redoc`) and `/openapi.json`. Off by default: those routes do not exist (404), because they list every route of the app and need no login. Development only. | `0` | optional, not secret |
+| `AS4PUR_APP_NAME` | Application title. Not listed in `.env.example`. | `AS4PUR` | optional, not secret |
+
+Relative paths resolve against the directory the process is started from.
+
+Process-level settings (not `AS4PUR_` variables), handled by uvicorn:
+
+- **Bind address and port:** `--host` / `--port` on the command line, or the `UVICORN_HOST` / `UVICORN_PORT` environment variables. Default `127.0.0.1:8000`. `[verified]` for both forms.
+- **Trusted proxy:** by default uvicorn trusts `X-Forwarded-For` / `X-Forwarded-Proto` only from `127.0.0.1`. If a proxy or load balancer on another address sits in front, pass `--forwarded-allow-ips <address>` or set `FORWARDED_ALLOW_IPS`. Without it the app sees the proxy's address as the client (login rate limiting and the audit log then use the wrong address) and invite links get the wrong scheme. `[not executed]` (documented in `uvicorn --help`).
+- **Log level and destination:** `--log-level`. The app writes to stdout/stderr (the systemd journal under systemd) and has no log file of its own.
+- **Worker count:** see "Run" below. `WEB_CONCURRENCY` must be unset or `1`; the app refuses to start otherwise.
+
+## Database
+
+```
+# [verified]  from an empty database: applies 4 migrations, ends at head
+.venv/bin/python -m alembic upgrade head
+```
+
+Run this **before the first start**. If the app is started first on an empty database it creates the tables itself without recording migration history, and a later `alembic upgrade head` then fails with "table already exists" (observed in the fresh-clone check). `alembic upgrade` takes the database path from the same settings as the app, so run it from the repository root with the same `.env`.
+
+After pulling a release, run `alembic upgrade head` again (see "Upgrade").
+
+## First login
+
+There are no default accounts. Create the first administrator on the host:
+
+```
+# [verified]  with the password prompt stubbed (the real script asks twice, hidden input, 12+ characters)
+.venv/bin/python scripts/create_user.py <username> admin
+```
+
+Then open `https://<your-host>/login`. An administrator invites everyone else from `/admin` (invite links are single-use). Invites are only accepted for the email domains listed in `AS4PUR_INVITE_ALLOWED_DOMAINS`; set it in `.env` and restart the app before inviting anyone.py`; change it there if your organisation uses a different domain.
+
+If login seems not to stick when you test over plain `http://` at a hostname or LAN address, set `AS4PUR_SECURE_COOKIES=false` in `.env`, restart, and set it back to `true` for real use. (`http://127.0.0.1` is exempt in modern browsers, so it will not show the problem.)
+
+## Run
+
+```
+# [verified]  (Windows: .venv\Scripts\uvicorn.exe)
+.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+
+**AS4PUR must run with exactly one worker process per instance.** Operator tokens, in-progress wizards, running background jobs, finished Data Export files (10 minutes, memory only) and the login limiter all live in the memory of that one process; a second worker would not see them (a Data Export download could answer "gone" from the worker that did not build the file, and a job could not be polled). So: do not add `--workers`, do not use a multi-worker Gunicorn, do not use `--reload` outside development, and leave `WEB_CONCURRENCY`, `UVICORN_WORKERS` and every similar setting unset.
+
+How the single worker is enforced, and what is not:
+
+- The example unit below sets `Environment=WEB_CONCURRENCY=1`, so a value inherited from the host cannot start extra workers. I could not confirm from the systemd documentation how it orders `Environment=` against a line in the `EnvironmentFile=`, so never put `WEB_CONCURRENCY` in `.env` either.
+- The app refuses to start when `WEB_CONCURRENCY` is anything but `1`. It does **not** look at `--workers N` on the command line, `UVICORN_WORKERS`, `gunicorn -w N`, or several separate instances behind a proxy: before this check existed `WEB_CONCURRENCY=2` started two server processes, and `UVICORN_WORKERS=2` and `--workers 2` still do (all observed with uvicorn 0.54 in a fresh clone).
+- **A refusing worker does not stop the service.** With `WEB_CONCURRENCY=2` uvicorn's supervisor respawns each worker the moment it refuses, so the main process keeps running, serves nothing, and repeats the message. `systemctl status as4pur` can therefore show `active (running)` while every request fails. In the journal it looks like the same two lines over and over:
+
+```
+# [not executed]  the wording below was observed in the fresh-clone check on Windows, not under systemd
+journalctl -u as4pur -n 50 --no-pager
+#   AS4PUR refuses to start: WEB_CONCURRENCY is set to '2', but AS4PUR must run as a single process. ...
+#   INFO:     Child process [<pid>] died
+```
+
+  If you see that, remove `WEB_CONCURRENCY` from the unit and from `.env`, then `sudo systemctl restart as4pur`.
+
+The app has no health or liveness endpoint (`/health` and `/healthz` return 404). Use a request to `/login` (HTTP 200) if a monitor needs a URL.
+
+## Where state lives
+
+| What | Where | Notes |
+|---|---|---|
+| Users, sessions, audit log, jobs | SQLite file (`AS4PUR_DATABASE_PATH`) plus `-wal` and `-shm` files while running | The only data that must persist and be backed up. |
+| Uploads in progress | `AS4PUR_UPLOAD_TEMP_DIR` | Temporary; deleted after each run. |
+| Netskope tokens, tenant names in a wizard, Data Export files | Process memory only | Lost on restart, logout or expiry. Never on disk. |
+| Browser | Cookies only (`as4pur_session`, login/registration CSRF cookies, a language preference cookie) | No local storage. |
+
+Both default paths are under `./data/`, inside the checkout but ignored by git. For a server, either keep `data/` on a persistent disk or set the two paths to a persistent location outside the code tree. Whatever you choose, the service must be able to write there (see `ReadWritePaths` in the systemd unit).
+
+## Hosting
+
+### A. On-premises VM (systemd + nginx)
+
+Layout: code in `/opt/as4pur`, state in `/opt/as4pur/data`, service user `as4pur`, uvicorn on `127.0.0.1:8000`, nginx on 443. `deploy/README_DEPLOY.md` has the same steps plus host hardening (firewall, log rotation, patching).
+
+```
+# [not executed]
+sudo useradd --system --home /opt/as4pur --shell /usr/sbin/nologin as4pur
+sudo mkdir -p /opt/as4pur && sudo chown as4pur:as4pur /opt/as4pur
+sudo -u as4pur git clone <REPO_URL> /opt/as4pur          # the directory must be empty
+cd /opt/as4pur
+sudo -u as4pur mkdir -p data
+sudo -u as4pur python3 -m venv .venv
+sudo -u as4pur .venv/bin/python -m pip install -r requirements.txt
+sudo -u as4pur cp .env.example .env && sudo chmod 600 .env
+sudo -u as4pur .venv/bin/python -m alembic upgrade head
+sudo -u as4pur .venv/bin/python scripts/create_user.py <username> admin
+```
+
+A private repository needs read access for the `as4pur` user (for example a read-only deploy key). Do not put a token in a remote URL that is saved on the server.
+
+TLS certificate (self-signed or from an internal CA), the systemd unit and nginx:
+
+```
+# [not executed]
+sudo mkdir -p /etc/ssl/as4pur
+sudo openssl req -x509 -nodes -newkey rsa:2048 -keyout /etc/ssl/as4pur/privkey.pem -out /etc/ssl/as4pur/fullchain.pem -days 825 -subj "/CN=<your-hostname>"
+
+sudo cp deploy/as4pur.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now as4pur
+
+sudo cp deploy/nginx_as4pur.conf /etc/nginx/sites-available/as4pur
+sudo ln -s /etc/nginx/sites-available/as4pur /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+Edit `deploy/nginx_as4pur.conf` first: `server_name as4pur.internal` appears twice and is a placeholder for your hostname; the certificate paths and the `limit_req` rates are its other site-specific values. The provided configuration allows TLS 1.3 only.
+
+### B. Cloud VM
+
+Use the same layout and the same steps as A on an Ubuntu VM, with these differences:
+
+- **Persistent disk for state.** Put `/opt/as4pur/data` (or the paths you set in `.env`) on a disk that outlives the instance. On an ephemeral instance disk, replacing the VM loses every user account, the audit log and the job history. Keep the systemd `ReadWritePaths` line equal to the directory you use.
+- **Private access only.** Place the VM in a private subnet, or behind a VPN or zero-trust gateway. Do not give it a public address with port 443 open. The application is designed for LAN use and must not face the internet.
+- **TLS.** Either terminate at nginx on the VM exactly as in A, or terminate at a load balancer. With a load balancer: (1) bind uvicorn to the VM's private address instead of `127.0.0.1` and keep it unreachable from anywhere else; (2) pass `--forwarded-allow-ips <load balancer address or subnet>` so the real client address and `https` scheme are used; (3) keep `AS4PUR_SECURE_COOKIES=true`; (4) reproduce nginx's request limits on the balancer (55 MiB request body, and the timeout in the next section). The provided nginx file hard-codes `X-Forwarded-Proto https`, which is only correct when TLS ends at that nginx.
+- **Security groups / firewall:** allow 443 only from the networks that need access.
+- Nothing in this repository was tested on a cloud provider.
+
+## nginx notes
+
+- `client_max_body_size 55m` is already set in `deploy/nginx_as4pur.conf`. It must stay above `AS4PUR_NSDEBUG_UPLOAD_MAX_BYTES` (50 MiB), otherwise nginx answers large uploads with its own bare 413 page. If you raise the app limit, raise this too, then reload nginx.
+- **`proxy_read_timeout` is not set**, so nginx's default of 60 seconds applies. Data Export runs a whole export in one request. Measured against a small test tenant, each page of 200 users costs about 1.7 seconds (the API call plus the 0.3 second pause the client keeps between calls), so about 30 pages fit in 60 seconds. That figure comes from one small tenant and is an estimate for larger ones. A tenant with several thousand users can exceed that; nginx then returns a 504 even though the export may finish on the server, and the result is not shown. Add `proxy_read_timeout 300s;` to `location /` for larger tenants (and raise the idle timeout on any load balancer). `[not executed]`
+- One application worker only, as above.
+- FastAPI's interactive documentation (`/docs`, `/redoc`) and `/openapi.json` are **disabled by default** (the routes do not exist, so they answer 404; checked in the fresh clone). Turn them on only on a development machine with `AS4PUR_ENABLE_API_DOCS=1`. If you want a second layer anyway, block them at the proxy: `location ~ ^/(docs|redoc|openapi\.json)$ { return 404; }` `[not executed]`.
+
+## Example systemd unit
+
+An example derived from the real start command above. It has not been verified on a target server. The full version with additional sandboxing is `deploy/as4pur.service`; its own comments flag which of those lines are still unverified, and to try commenting out `RestrictAddressFamilies` / `SystemCallFilter` first if the service fails to start.
+
+```
+# [not executed]  /etc/systemd/system/as4pur.service
+[Unit]
+Description=AS4PUR
+After=network.target
+
+[Service]
+Type=simple
+User=as4pur
+Group=as4pur
+WorkingDirectory=/opt/as4pur
+EnvironmentFile=/opt/as4pur/.env
+# One process only: pin the worker count and never add --workers
+Environment=WEB_CONCURRENCY=1
+ExecStart=/opt/as4pur/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/opt/as4pur/data
+ProtectHome=true
+PrivateTmp=true
+MemoryMax=512M
+
+[Install]
+WantedBy=multi-user.target
+```
+
+## Upgrade
+
+```
+# [not executed]
+cd /opt/as4pur
+sudo -u as4pur git pull --ff-only
+sudo -u as4pur .venv/bin/python -m pip install -r requirements.txt
+sudo -u as4pur .venv/bin/python -m alembic upgrade head
+sudo systemctl restart as4pur
+```
+
+Take a database backup first (next section). A restart drops everything held in memory: running background jobs, entered tokens and unfinished wizards, and any finished export that has not been downloaded. Restart when no job is running. After the restart, `journalctl -u as4pur` showing "Database schema may be out of date" means a migration was skipped.
+
+## SQLite backup
+
+The database runs in WAL mode, so a plain file copy of `as4pur.db` from a running instance can miss recent commits. Use SQLite's online backup, or stop the service and copy `as4pur.db` together with its `-wal` and `-shm` files:
+
+```
+# [not executed]   (needs the sqlite3 package: sudo apt install sqlite3)
+sudo -u as4pur sqlite3 /opt/as4pur/data/as4pur.db ".backup '/path/to/backup/as4pur-backup.db'"
+```
+
+A backup contains user accounts (password hashes), the audit log and job history. Protect it like a credential store. It contains no Netskope tokens.
+
+## Security notes
+
+- **Network:** private network only, reached through VPN or zero-trust access, TLS always. The app still requires a real login and sends strict security headers (CSP without inline scripts, HSTS, frame denial) on every response. HSTS is sent unconditionally, so use the app over HTTPS only.
+- **Accounts:** argon2 password hashes, server-side sessions with an idle timeout, CSRF protection on every form, login rate limiting (in the app and in the provided nginx file). There is no self-registration and no default account.
+- **Secrets:** the app needs none. `.env` holds settings only; it is git-ignored and should be `chmod 600`. Never commit it.
+- **Netskope tokens:** entered per operation, kept only in process memory, dropped at logout or expiry, and never written to the database, logs or audit records. Data Export files are built in memory and are not written to disk.
+- **Uploads:** type and size limits are enforced before parsing; temporary files are deleted after processing.
+
+## Repository layout
+
+```
+app/                the application (routes, templates, static files, one package per operation)
+alembic/            database migrations (alembic.ini at the root)
+reference_scripts/  proven CLI scripts; parts are imported by the application at runtime, so keep this folder
+scripts/            create_user.py (creates the first administrator)
+deploy/             example systemd unit, nginx configuration, deployment notes
+docs/               design notes for the UI
+```

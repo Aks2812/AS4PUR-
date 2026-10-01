@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Device Posture Validation — nsdebug.log — {{ app_name }}{% endblock %}
+{% block content %}
+<h1>Device Posture Validation</h1>
+<p class="step-indicator">Upload nsdebug.log &middot; per-criteria pass/fail</p>
+
+<p>Upload a device's <code>nsdebug.log</code> (Windows, macOS, iOS, or Android) to see which posture criteria it reported as checked, passed, or failed - read-only, nothing is sent to Netskope.</p>
+
+{% if error %}<div class="alert alert-error" role="alert">{{ error }}</div>{% endif %}
+{# Filled in by static/js/nsdebug-upload.js when the chosen file is over the limit, before any upload starts. #}
+<div id="nsdebug-upload-client-error" class="alert alert-error" role="alert" hidden></div>
+
+<div class="format-explainer">
+  <h2>Where to get this file</h2>
+  <p>Collected manually from the Netskope tenant UI: Settings &rarr; Security Cloud Platform &rarr; Netskope Client &rarr; Devices &rarr; [user] &rarr; Collect log. Automated retrieval isn't available yet.</p>
+  <p class="hint">Not every check type this platform supports will necessarily appear in a given log - macOS and Android, in particular, often stay silent for check types with no configured rule rather than logging a "no rule" line the way Windows does. A check that's applicable to the platform but wasn't observed in this log is shown as its own distinct outcome below, never silently left out.</p>
+</div>
+
+<form method="post" action="{{ action }}" enctype="multipart/form-data" class="stacked-form" data-max-bytes="{{ max_upload_bytes }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <label>nsdebug.log
+    <input type="file" name="file" accept=".log,.txt" required>
+    <span class="hint">.log or .txt, up to {{ max_upload_label }}</span>
+  </label>
+
+  <details>
+    <summary>Cross-reference against the live tenant rule (optional)</summary>
+    <p class="hint">Needs tenant name + API token. Looks up the live rule matching this log's classification status ID, shows that rule's real conditions, and flags any check the rule requires but this log has no local verdict for. Leave both blank to skip - the log-only results below are unaffected either way, and a failed lookup here never blocks them.</p>
+    <label>Tenant name
+      <input type="text" name="tenant" placeholder="e.g. my-tenant" autocomplete="off">
+    </label>
+    <label>API token
+      <input type="password" name="token" placeholder="Netskope API token" autocomplete="off">
+    </label>
+  </details>
+
+  <button type="submit">Analyze log</button>
+</form>
+
+{% include "partials/back_link.html" %}
+<script src="/static/js/nsdebug-upload.js"></script>
+{% endblock %}

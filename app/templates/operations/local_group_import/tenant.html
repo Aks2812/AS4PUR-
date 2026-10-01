@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}User provision — {{ app_name }}{% endblock %}
+{% block content %}
+<h1>User provision</h1>
+<p class="step-indicator">Step 1 of 4 &middot; Tenant &amp; token</p>
+
+{% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+
+<p>Use this only for populations genuinely outside any Entra ID/SCIM pipeline (external vendors, contractors, or a client with no sync pipeline at all) - never as a workaround for a gap in an existing Entra-synced group.</p>
+
+{% include "partials/tenant_token_form.html" %}
+{% endblock %}

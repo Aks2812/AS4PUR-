@@ -1,0 +1,25 @@
+{#
+  Generalized "<- Back" link (CLAUDE.md Section 12 / Back-navigation
+  foundation work, 2026-09-08) - the same visual treatment
+  existing_rule_confirm.html originally introduced one-off as
+  "<- Wrong rule? Look up a different ID", now reused everywhere a wizard
+  step needs to link back to the immediately-preceding one.
+
+  The including page must provide `back_url`. `back_label` is optional
+  and defaults to "Back" - pass a more specific label (like
+  existing_rule_confirm.html's own "Wrong rule? Look up a different
+  rule") where it reads better than the generic one.
+
+  Always a plain GET link, never a form - every Back target is itself a
+  GET route that reconstructs its screen from the cached wizard entry,
+  never a resubmission of the step being left.
+
+  Styled via `.back-link` (style.css, 2026-09-13 correction) - deliberately
+  its OWN class, not a shared generic one: dashboard.html has its own
+  unrelated "View audit history / How this works" line (`.dashboard-links`)
+  that must NOT pick up this link's specific color/size/weight rules just
+  because it might otherwise share a class name with this partial.
+#}
+{% if back_url %}
+<p class="back-link-row"><a href="{{ back_url }}" class="back-link"><span aria-hidden="true">&larr;</span>{{ back_label or "Back" }}</a></p>
+{% endif %}

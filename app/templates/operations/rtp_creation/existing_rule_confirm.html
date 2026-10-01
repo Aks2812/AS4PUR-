@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}RTP creation — Add Users to Existing Rule — {{ app_name }}{% endblock %}
+{% block content %}
+<h1>RTP creation — Add Users to Existing Rule</h1>
+<p class="step-indicator">Step 3 of 5 &middot; Confirm target rule &middot; Tenant: {{ tenant }}</p>
+
+<p>Is this the right rule? Check the details below before continuing.</p>
+
+<div class="format-explainer">
+  <h2>Rule {{ target_rule.rule_id }}</h2>
+  <dl class="job-meta">
+    <dt>Rule name</dt><dd>{{ target_rule.rule_name }}</dd>
+    <dt>Status</dt>
+    <dd>
+      {% if target_rule.enabled %}
+      <span class="status-badge status-failed">ENABLED</span>
+      {% else %}
+      <span class="status-badge status-rule_disabled">DISABLED</span>
+      {% endif %}
+    </dd>
+    <dt>Access method</dt><dd>{{ target_rule.access_method | join(", ") or "—" }}</dd>
+    <dt>Private app(s)</dt><dd>{{ target_rule.private_apps | join(", ") | replace("[", "") | replace("]", "") or "—" }}</dd>
+    <dt>Current user count</dt><dd>{{ target_rule.current_users | length }}</dd>
+  </dl>
+  {% if target_rule.enabled %}
+  <p class="alert alert-warn">This rule is currently <strong>ENABLED</strong>. Any users added later in this flow will get live access as soon as you confirm - there's no disabled buffer period like creating a new rule.</p>
+  {% endif %}
+</div>
+
+<form method="post" action="{{ action }}" class="stacked-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <button type="submit">Yes, this is the right rule — continue</button>
+</form>
+{% include "partials/back_link.html" %}
+{% endblock %}

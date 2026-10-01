@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Private app definition — {{ app_name }}{% endblock %}
+{% block content %}
+<h1>Private app definition</h1>
+<p class="step-indicator">Step 2 of 4 &middot; Choose publisher(s) &middot; Tenant: {{ tenant }}</p>
+
+{% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+{% if vanished_publisher_ids %}
+<div class="alert alert-warn">
+  {{ vanished_publisher_ids | length }} previously selected publisher(s) (ID {{ vanished_publisher_ids | join(", ") }}) no longer appear in this tenant's publisher list and will <strong>not</strong> be included unless you pick a replacement below.
+</div>
+{% endif %}
+
+<p>Select which publisher(s) the imported apps should be assigned to. Apps are often assigned to more than one publisher for redundancy - check every box that should apply. There is no default selection; at least one is required.</p>
+
+<form method="post" action="{{ action }}" class="stacked-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <div class="publisher-list">
+    {% for p in publishers %}
+    <label class="publisher-row">
+      <input type="checkbox" name="publisher_id" value="{{ p.publisher_id }}"{% if p.publisher_id in selected_publisher_ids %} checked{% endif %}>
+      <span class="publisher-name">{{ p.publisher_name }}</span>
+      <span class="publisher-id">ID {{ p.publisher_id }}</span>
+      <span class="status-badge">{{ p.status }}</span>
+    </label>
+    {% endfor %}
+  </div>
+  <button type="submit">Continue</button>
+</form>
+{% include "partials/back_link.html" %}
+{% endblock %}

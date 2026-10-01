@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Invites — {{ app_name }}{% endblock %}
+{% block content %}
+<h1>Invites</h1>
+<p><a href="/admin">&larr; Admin</a></p>
+
+{% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+{% if invite_domains_missing and not error %}
+<div class="alert alert-warn">Invites are turned off: no allowed email domain is configured. Set <code>AS4PUR_INVITE_ALLOWED_DOMAINS</code> in the server's <code>.env</code> (comma-separated, for example <code>example.com</code>) and restart the app.</div>
+{% endif %}
+
+{% if new_link %}
+<div class="alert alert-warn">
+  <strong>Invite created.</strong> Copy this link and share it with the invitee yourself (Slack, Tag, etc.) - it's shown once, right now, and never again:
+  <p><code>{{ new_link }}</code></p>
+  This link works once and expires in 72 hours.
+</div>
+{% endif %}
+
+<div class="format-explainer">
+  <h2>Invite someone new</h2>
+  <form method="post" action="/admin/invites" class="stacked-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <label>Email
+      <input type="text" name="email" placeholder="firstname.lastname@{{ invite_domains[0] if invite_domains else 'example.com' }}" required autofocus>
+    </label>
+    <label>Role
+      <select name="role" class="select-input" required>
+        {% for r in roles %}
+        <option value="{{ r.value }}">{{ r.value }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <button type="submit">Create invite</button>
+  </form>
+</div>
+
+{% if not rows %}
+<p>No invites yet.</p>
+{% else %}
+<div class="table-scroll">
+<table class="data-table">
+  <thead><tr><th>Email</th><th>Role</th><th>Status</th><th>Created by</th><th>Created</th><th>Expires</th><th></th></tr></thead>
+  <tbody>
+    {% for row in rows %}
+    <tr>
+      <td>{{ row.invite.email }}</td>
+      <td>{{ row.invite.role.value }}</td>
+      <td><span class="status-badge status-{{ row.state }}">{{ row.state }}</span></td>
+      <td>{{ row.invite.created_by }}</td>
+      <td>{{ row.invite.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
+      <td>{{ row.invite.expires_at.strftime("%Y-%m-%d %H:%M") }}</td>
+      <td>
+        {% if row.state == "pending" %}
+        <form method="post" action="/admin/invites/{{ row.invite.id }}/revoke">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button type="submit" class="link-button">Revoke</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+{% endblock %}

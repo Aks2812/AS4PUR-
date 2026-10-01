@@ -1,0 +1,28 @@
+{#
+  Shown at the top of an upload step when the operator navigates Back
+  into it after a file was already uploaded and processed this session
+  (CLAUDE.md Section 12 / Back-navigation foundation work, 2026-09-08).
+  Never silently discards the cached results just because this step was
+  revisited - the choice to keep them or replace them is the operator's.
+
+  The including page must provide `previously_processed` (a dict with
+  `filename`, `will_create`, `skipped_exists`, `validation_excluded` -
+  Op2's Stage A upload passes the equivalent identity-resolution counts
+  under the same three keys' names, see rtp_creation/routes.py's
+  show_upload) and `continue_url` (the GET route that redisplays the
+  review step from cache, no re-parse).
+#}
+{% if previously_processed %}
+<div class="format-explainer">
+  <h2>Already processed</h2>
+  <p>You already uploaded and analyzed <strong>{{ previously_processed.filename }}</strong>:
+    {% if "matched_count" in previously_processed %}
+      {{ previously_processed.matched_count }} matched, {{ previously_processed.unmatched_count }} unmatched{% if previously_processed.ambiguous_count %}, {{ previously_processed.ambiguous_count }} ambiguous{% endif %}.
+    {% else %}
+      {{ previously_processed.will_create }} will create, {{ previously_processed.skipped_exists }} skipped, {{ previously_processed.validation_excluded }} invalid.
+    {% endif %}
+  </p>
+  <p><a href="{{ continue_url }}">Continue to review &rarr;</a></p>
+  <p class="hint">Uploading a different file below will replace these results.</p>
+</div>
+{% endif %}

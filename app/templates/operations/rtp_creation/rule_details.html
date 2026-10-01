@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}RTP creation — {{ app_name }}{% endblock %}
+{% block content %}
+<h1>RTP creation</h1>
+<p class="step-indicator">Stage B, Step 2 of 3 &middot; App, access method &amp; rule name &middot; Tenant: {{ tenant }}</p>
+
+{% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+{% if vanished_apps %}
+<div class="alert alert-warn">{{ vanished_apps | length }} previously selected app(s) ({{ vanished_apps | join(", ") }}) no longer appear in this tenant's app list and will <strong>not</strong> be included unless you pick a replacement below.</div>
+{% endif %}
+
+{% if not app_names %}
+<p class="alert alert-error">This tenant has no Private Apps yet - run Private app definition first, or check the token's scope.</p>
+{% endif %}
+
+<form method="post" action="{{ action }}" class="stacked-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+  <fieldset>
+    <legend>Private app(s) to grant access to</legend>
+    {% if app_names %}
+    <div class="list-filter">
+      <input type="search" data-filter-target="app-select-list" placeholder="Filter by app name...">
+    </div>
+    <label class="select-all-row">
+      <input type="checkbox" data-select-all-target="app-select-list">
+      Select all (<span data-select-all-count>0</span> shown)
+    </label>
+    {% endif %}
+    <div class="publisher-list" id="app-select-list">
+      {% for name in app_names %}
+      <label class="publisher-row">
+        <input type="checkbox" name="private_apps" value="{{ name }}"{% if name in selected_apps %} checked{% endif %}>
+        <span class="publisher-name">{{ normalize_app_name(name) }}</span>
+      </label>
+      {% endfor %}
+    </div>
+    <p class="list-filter-empty" data-filter-empty hidden>No apps match that filter.</p>
+  </fieldset>
+
+  <label>Access method
+    <select name="access_method" required>
+      <option value="">Choose...</option>
+      <option value="Client"{% if access_method_value == "Client" %} selected{% endif %}>Client</option>
+      <option value="Clientless"{% if access_method_value == "Clientless" %} selected{% endif %}>Clientless</option>
+    </select>
+  </label>
+
+  <label>Rule name
+    <input type="text" name="rule_name" placeholder="e.g. NPA-Example-Bulk-Access" value="{{ rule_name_value or '' }}" required>
+  </label>
+
+  <button type="submit">Continue</button>
+</form>
+<script src="/static/js/list-filter.js"></script>
+{% include "partials/back_link.html" %}
+{% endblock %}

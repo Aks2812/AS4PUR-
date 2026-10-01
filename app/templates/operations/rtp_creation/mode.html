@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}RTP creation — {{ app_name }}{% endblock %}
+{% block content %}
+<h1>RTP creation</h1>
+<p>Choose what you want to do.</p>
+
+<div class="card-grid">
+  <div class="op-card">
+    <h2>Create a new rule</h2>
+    <p>Bulk-create a brand-new NPA access policy for a list of users. The rule is always created disabled first.</p>
+    <a href="/operations/rtp-creation/new">Start &rarr;</a>
+  </div>
+  <div class="op-card">
+    <h2>Add users to an existing rule</h2>
+    <p>Resolve a new list of users the same way, then merge them into a rule that already exists - nothing already on the rule is removed.</p>
+    <a href="/operations/rtp-creation/existing-rule">Start &rarr;</a>
+  </div>
+</div>
+{% endblock %}

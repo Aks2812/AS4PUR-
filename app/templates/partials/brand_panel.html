@@ -1,0 +1,46 @@
+{#
+  Shared left "brand panel" (docs/design-system.md Sections 4-5,
+  2026-09-16 landing+login rebuild) - included identically by both
+  landing.html and login.html so they "immediately feel like the same
+  AS4PUR application" (Section 12) rather than two separate
+  interpretations of the brand. Purely static markup, no parameters -
+  any real difference between the two pages lives outside this partial.
+
+  Logo: reuses the existing app/static/icons/as4pur-mark.svg unmodified
+  (same file the sidebar already uses), never recolored. Originally
+  documented as a minor accepted mismatch (the logo's baked-in #D9700F
+  vs. this spec's own #E97800), before the 2026-09-16 palette
+  unification - now, having replaced #E97800 with #D9700F everywhere on
+  these two pages, the logo's color and the page's orange accent are the
+  exact same value, not merely close. See docs/design-system.md's
+  "Implementation Corrections & Notes" #6.
+
+  Decoration (Section 5): thin corner line-art in --as4pur-navy-light at
+  0.65 opacity, purely decorative (aria-hidden, pointer-events: none),
+  positioned by .brand-panel-deco in style.css - deliberately behind the
+  logo/wordmark/tagline, not competing with them.
+
+  Icon+wordmark link to "/" (2026-09-17) - a no-op on landing.html itself
+  (already "/"), the actual "go home" affordance on login.html. Tagline
+  stays plain text, outside the link - only the icon+wordmark are
+  clickable. .brand-mark-link sets text-decoration/color defensively
+  (style.css) so this doesn't pick up the app-wide bare `a { color:
+  var(--brand) }`/underline-on-hover look - .brand-wordmark's own white
+  already wins on specificity alone, but this is explicit rather than
+  relying on that.
+#}
+<div class="brand-panel">
+  <svg class="brand-panel-deco" aria-hidden="true" viewBox="0 0 553 800" preserveAspectRatio="none">
+    <path d="M0,40 L90,40 L90,0" />
+    <path d="M0,120 L40,120" />
+    <path d="M553,760 L463,760 L463,800" />
+    <path d="M553,680 L513,680" />
+  </svg>
+  <div class="brand-panel-inner">
+    <a href="/" class="brand-mark-link">
+      <img class="brand-logo" src="/static/icons/as4pur-mark.svg" width="72" height="72" alt="AS4PUR">
+      <div class="brand-wordmark">AS4PUR</div>
+    </a>
+    <p class="brand-tagline">Automation system for<br>Private App Definition, User<br>Provision, and RTP Creation</p>
+  </div>
+</div>

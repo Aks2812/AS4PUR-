@@ -1,0 +1,172 @@
+{#
+  Public landing page (docs/design-system.md Sections 6-11, plus the two
+  added sections - "Implementation Corrections & Notes" #3 - 2026-09-16).
+  Shown at "/" for anonymous visitors only (app/main.py's home() route) -
+  an authenticated "/" request still gets dashboard.html exactly as
+  before, unchanged. Shares the same brand panel as login.html via
+  partials/brand_panel.html (Section 12).
+
+  Language toggle (2026-09-16, app/i18n.py): every string in this file
+  from the hero row down through the Security-by-Design section comes
+  from `t` (the active language's dict, app/main.py's home() route) -
+  never hardcoded English or Indonesian text here again. Deliberately
+  OUT of scope, per explicit operator instruction, and so NOT pulled
+  from `t`: the brand panel (partials/brand_panel.html - shared with
+  login.html, which this feature doesn't touch) and the footer below
+  (same reasoning - shared brand copy, not page content) - both stay
+  English always. The <title> tag above is likewise always English (not
+  named as in-scope, and not real on-page content).
+
+  Language SWITCHER control - custom dropdown (2026-09-16 correction),
+  not a native <select>: a <select> can't render an image inside its
+  <option>s, and flag emoji specifically render as literal "GB"/"ID"
+  text on Windows/Chromium rather than actual flags - both rule out
+  simpler approaches, hence a real button+listbox widget (static/js/
+  landing.js drives open/close, keyboard nav, and selection; no existing
+  floating-panel/menu component was found anywhere else in this app to
+  reuse structurally - .select-input's button/border/radius/color look
+  IS reused for the closed-state trigger, per instruction, via the exact
+  same class). Self-hosted flag assets (app/static/icons/flags/gb.svg,
+  id.svg - flag-icons library, MIT licensed, https://github.com/lipis/
+  flag-icons - only these two files, no CDN reference). The trigger's
+  flag+label always reflect `active_lang` (server-rendered, same as the
+  old <select>'s `selected` attribute did) - since choosing a language
+  does a real page navigation (not client-side swapping), the freshly
+  rendered page always shows the correct trigger state; no client-side
+  re-sync logic is needed for that part.
+#}
+{% extends "base.html" %}
+{% import "partials/icons.html" as icons %}
+{% block title %}{{ app_name }} — Secure Access. Automated.{% endblock %}
+{% block main_class %}brand-shell-page{% endblock %}
+{% block content %}
+<div class="brand-shell">
+  {% include "partials/brand_panel.html" %}
+  <div class="content-panel landing-panel">
+    {% set lang_options = [
+      {"code": "en", "name": "English", "flag": "gb"},
+      {"code": "id", "name": "Bahasa Indonesia", "flag": "id"},
+    ] %}
+    {% set active_option = (lang_options | selectattr("code", "equalto", active_lang) | first) or lang_options[0] %}
+    <div class="landing-header">
+      <div class="lang-dropdown">
+        <button
+          type="button"
+          class="select-input lang-dropdown-trigger"
+          id="lang-dropdown-trigger"
+          aria-haspopup="listbox"
+          aria-expanded="false"
+          aria-controls="lang-dropdown-panel"
+        >
+          <img class="lang-flag" src="/static/icons/flags/{{ active_option.flag }}.svg" alt="" width="18" height="13">
+          <span class="lang-dropdown-label">{{ active_option.name }}</span>
+        </button>
+        <ul
+          class="lang-dropdown-panel"
+          id="lang-dropdown-panel"
+          role="listbox"
+          aria-labelledby="lang-dropdown-trigger"
+          hidden
+        >
+          {% for opt in lang_options %}
+          <li
+            class="lang-dropdown-option"
+            role="option"
+            data-lang="{{ opt.code }}"
+            aria-selected="{{ 'true' if opt.code == active_lang else 'false' }}"
+            tabindex="-1"
+          >
+            <img class="lang-flag" src="/static/icons/flags/{{ opt.flag }}.svg" alt="" width="18" height="13">
+            <span>{{ opt.name }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+
+    <div class="landing-content">
+      <div class="landing-hero-row">
+        <div class="landing-hero-text">
+          <p class="landing-eyebrow">{{ t.eyebrow }}</p>
+          <h1 class="landing-hero-heading">{{ t.hero_heading }}</h1>
+          <p class="landing-description">{{ t.hero_description }}</p>
+
+          <div class="landing-features">
+            <div class="landing-feature">
+              <div class="landing-feature-icon">{{ icons.ti_icon("upload") }}</div>
+              <div>
+                <p class="landing-feature-title">{{ t.feature_1_title }}</p>
+                <p class="landing-feature-desc">{{ t.feature_1_desc }}</p>
+              </div>
+            </div>
+            <div class="landing-feature">
+              <div class="landing-feature-icon">{{ icons.ti_icon("users") }}</div>
+              <div>
+                <p class="landing-feature-title">{{ t.feature_2_title }}</p>
+                <p class="landing-feature-desc">{{ t.feature_2_desc }}</p>
+              </div>
+            </div>
+            <div class="landing-feature">
+              <div class="landing-feature-icon">{{ icons.ti_icon("lock") }}</div>
+              <div>
+                <p class="landing-feature-title">{{ t.feature_3_title }}</p>
+                <p class="landing-feature-desc">{{ t.feature_3_desc }}</p>
+              </div>
+            </div>
+          </div>
+
+          <a class="landing-cta" href="/login">{{ t.cta_button }} <span aria-hidden="true">&rarr;</span></a>
+        </div>
+
+        <div class="landing-illustration">
+          <img src="/static/images/landing-illustration.png" alt="">
+        </div>
+      </div>
+
+      <div class="landing-section">
+        <p class="landing-eyebrow">{{ t.challenge_eyebrow }}</p>
+        <h2 class="landing-section-h2">{{ t.challenge_heading }}</h2>
+        <ul class="landing-challenge-list">
+          <li>{{ t.challenge_point_1 }}</li>
+          <li>{{ t.challenge_point_2 }}</li>
+          <li>{{ t.challenge_point_3 }}</li>
+        </ul>
+      </div>
+
+      <div class="landing-section">
+        <p class="landing-eyebrow">{{ t.security_eyebrow }}</p>
+        <h2 class="landing-section-h2">{{ t.security_heading }}</h2>
+        <div class="landing-features">
+          <div class="landing-feature">
+            <div class="landing-feature-icon">{{ icons.ti_icon("eye") }}</div>
+            <div>
+              <p class="landing-feature-title">{{ t.security_1_title }}</p>
+              <p class="landing-feature-desc">{{ t.security_1_desc }}</p>
+            </div>
+          </div>
+          <div class="landing-feature">
+            <div class="landing-feature-icon">{{ icons.ti_icon("history") }}</div>
+            <div>
+              <p class="landing-feature-title">{{ t.security_2_title }}</p>
+              <p class="landing-feature-desc">{{ t.security_2_desc }}</p>
+            </div>
+          </div>
+          <div class="landing-feature">
+            <div class="landing-feature-icon">{{ icons.ti_icon("lock") }}</div>
+            <div>
+              <p class="landing-feature-title">{{ t.security_3_title }}</p>
+              <p class="landing-feature-desc">{{ t.security_3_desc }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="landing-footer">
+        <span><strong>{{ app_name }}</strong> &nbsp;|&nbsp; Automation system for Private App Definition, User Provision, and RTP Creation</span>
+        <span>v1.0.0</span>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="/static/js/landing.js"></script>
+{% endblock %}

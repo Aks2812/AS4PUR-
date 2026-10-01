@@ -1,0 +1,323 @@
+{% extends "base.html" %}
+{% block title %}Device Posture Validation — nsdebug.log report — {{ app_name }}{% endblock %}
+{% block content %}
+<h1>Device Posture Validation</h1>
+<p class="step-indicator">nsdebug.log report &middot; {{ report.source_name }} &middot; {{ report.platform }}</p>
+
+{% if report.warnings %}
+<div class="warnings-block">
+  <strong>Notes</strong>
+  <ul>
+    {% for w in report.warnings %}<li>{{ w }}</li>{% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<div class="job-meta">
+  <dt>Total log lines</dt><dd>{{ report.total_lines }}</dd>
+  <dt>Classification snapshots seen</dt><dd>{{ report.snapshot_count }}</dd>
+  <dt>Cache-fallback events</dt><dd>{{ report.cache_fallback_count }}</dd>
+</div>
+
+{% if report.snapshot %}
+<div class="format-explainer">
+  <h2>Latest classification snapshot</h2>
+  <dl class="job-meta">
+    <dt>Timestamp</dt><dd>{{ report.snapshot.timestamp or "(unknown)" }}</dd>
+    <dt>Hostname</dt><dd>{{ report.snapshot.hostname or "(unknown)" }}</dd>
+    <dt>OS</dt><dd>{{ report.snapshot.os or "(unknown)" }} {{ report.snapshot.os_version or "" }}</dd>
+    <dt>Device</dt><dd>{{ report.snapshot.device_make or "" }} {{ report.snapshot.device_model or "" }}</dd>
+    <dt>Classification status</dt><dd>{{ report.snapshot.classification_status or "(unknown)" }}</dd>
+    {% if report.snapshot.custom_status_label %}
+    <dt>Rule label</dt><dd>{{ report.snapshot.custom_status_label }}</dd>
+    {% endif %}
+    {% if report.snapshot.custom_status_id %}
+    <dt>Rule ID</dt><dd>{{ report.snapshot.custom_status_id }}</dd>
+    {% endif %}
+  </dl>
+  {% if report.snapshot.custom_status_id %}
+  <p class="hint">Whether this ID lines up with a rule's own <code>id</code> field from the tenant's live classification rule list is a reasonable but not yet independently confirmed assumption &mdash; cross-check it against a real <code>GET deviceclassification/rules</code> pull before relying on it for rule attribution.</p>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if rule_cross_reference %}
+<div class="format-explainer">
+  <h2>Live tenant rule cross-reference</h2>
+  {% if rule_cross_reference.error %}
+  <p class="alert alert-warn">Could not cross-reference against the live tenant rule: {{ rule_cross_reference.error }} The log-only results below are unaffected.</p>
+  {% elif rule_cross_reference.no_match_reason %}
+  <p class="hint">{{ rule_cross_reference.no_match_reason }}</p>
+  {% elif rule_cross_reference.rule %}
+  <dl class="job-meta">
+    <dt>Rule</dt><dd>{{ rule_cross_reference.rule.name }}{% if rule_cross_reference.rule.label %} ({{ rule_cross_reference.rule.label }}){% endif %}</dd>
+    <dt>Rule ID</dt><dd>{{ rule_cross_reference.rule.rule_id }}</dd>
+    <dt>Conditions</dt><dd>{{ rule_cross_reference.rule.rendered_conditions }}</dd>
+  </dl>
+  {% if rule_cross_reference.required_but_not_observed %}
+  <div class="warnings-block">
+    <strong>This live rule requires the following, but this log has no local verdict for {{ "them" if rule_cross_reference.required_but_not_observed|length != 1 else "it" }} &mdash; check manually:</strong>
+    <ul>
+      {% for ct in rule_cross_reference.required_but_not_observed %}<li>&#9888; {{ ct }}</li>{% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+  {% if rule_cross_reference.computed_os_version_check %}
+  <div class="warnings-block">
+    <strong>OS version requirement &mdash; computed by AS4PUR from raw OS info + rule threshold (not a verdict the device itself reported):</strong>
+    <ul>
+      {% for node in rule_cross_reference.computed_os_version_check %}
+      <li><span class="status-badge status-{{ 'passed' if node.verdict == 'PASS' else 'failed' }}">{{ node.verdict }}</span> {{ node.description }} &mdash; device reports: {{ node.device_value }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+  {% endif %}
+</div>
+{% endif %}
+
+{% if report.device_info_summary %}
+{% set s = report.device_info_summary %}
+{% set ev = rule_cross_reference.rule_evaluation if rule_cross_reference else none %}
+<div class="format-explainer">
+  <h2>Debug-level device info summary</h2>
+  <p class="hint">Debug-level logs record every posture criterion the client evaluated, with its own pass/fail status, in one block. That block lists the criteria of <em>all</em> of this tenant's rules for the device's OS together (a criterion shared by several rules appears once, in rule-ID order) &mdash; it is not one rule's checklist. String values are masked by the client.</p>
+  <dl class="job-meta">
+    <dt>Latest block</dt><dd>{{ s.timestamp or "(unknown time)" }} (log line {{ s.line_no }})</dd>
+    <dt>Blocks in this log</dt><dd>{{ s.block_count }} block{{ "s" if s.block_count != 1 else "" }} found{% if s.block_count == 1 %}{% elif s.blocks_identical %}, identical{% else %}, they differ &mdash; the latest one is shown{% endif %}</dd>
+    <dt>OS key</dt><dd><code>{{ s.os_key or "(none)" }}</code></dd>
+    <dt>Evaluation</dt>
+    <dd>
+      {% if s.use_cache is sameas true %}The latest block was served from cache (<code>useCache: true</code>), not a fresh evaluation &mdash; it may not reflect the device's current state.
+      {% elif s.use_cache is sameas false %}The latest block came from a fresh evaluation (<code>useCache: false</code>).
+      {% else %}Whether the latest block was a fresh evaluation could not be determined (no preceding <code>useCache</code> line).{% endif %}
+      {% if s.cached_block_count and s.block_count > 1 %}<br>{{ s.cached_block_count }} of {{ s.block_count }} blocks in this log were served from cache.{% endif %}
+    </dd>
+  </dl>
+
+  {% if s.truncated %}
+  <div class="warnings-block">
+    <strong>Truncated log entry.</strong>
+    Netskope truncated this log entry at {{ s.captured_len }} of {{ s.declared_len }} chars; criteria after {{ s.last_observed_type or "the start of the block" }}{% if ev and ev.unobserved_criteria %} (e.g. {{ ev.unobserved_criteria|join(", ") }}){% endif %} are not visible in this log.
+  </div>
+  {% endif %}
+
+  {% if not s.os_format_verified %}
+  <p class="alert alert-warn">Format not yet verified for this OS (block key <code>{{ s.os_key or "(none)" }}</code>) &mdash; the entries below are shown raw, with no rule attribution.</p>
+  {% endif %}
+
+  {% if ev and ev.attributed %}
+  {% if ev.rule_set_changed %}
+  <div class="alert alert-warn">
+    <strong>Rule set changed since this log was collected, results may be off.</strong>
+  </div>
+  {% endif %}
+  {% if ev.warnings %}
+  <div class="warnings-block">
+    <strong>Attribution notes</strong>
+    <ul>{% for w in ev.warnings %}<li>{{ w }}</li>{% endfor %}</ul>
+  </div>
+  {% endif %}
+  {% if ev.derived_contradictions %}
+  <div class="alert alert-warn" role="alert">
+    <ul>{% for m in ev.derived_contradictions %}<li>{{ m }}</li>{% endfor %}</ul>
+  </div>
+  {% endif %}
+
+  <h3>Predicted result per tenant rule ({{ ev.rules|length }} for this OS)</h3>
+  <p class="hint">Each rule is evaluated against the criteria this block actually shows. <strong>OBSERVED</strong>: the criterion's status is in the log and its masked value matched the rule. <strong>INFERRED</strong>: not in the log, but forced by the device's own classification. <strong>DERIVED</strong>: not in the log; worked out from the DiskEnc volume lines by an unverified mapping. <strong>UNKNOWN</strong>: not visible in this log &mdash; never assumed to have passed or failed.</p>
+  <div class="table-scroll">
+  <table class="data-table">
+    <thead><tr><th>Rule</th><th>From this log</th><th>Result</th><th>How known</th><th>Why</th></tr></thead>
+    <tbody>
+      {% for r in ev.rules %}
+      <tr data-rule-row>
+        <td>{{ r.label or r.name }}<br><span class="hint">id {{ r.rule_id }}{% if r.client_matched %} &middot; the device reports it matched this rule{% endif %}</span></td>
+        <td><span class="status-badge status-{{ 'passed' if r.computed == 'TRUE' else ('failed' if r.computed == 'FALSE' else 'unavailable') }}">{{ r.computed }}</span></td>
+        <td><span class="status-badge status-{{ 'passed' if r.effective == 'TRUE' else ('failed' if r.effective == 'FALSE' else 'unavailable') }}">{{ r.effective }}</span></td>
+        <td><span class="status-badge status-{{ 'info' if r.provenance == 'OBSERVED' else ('derived' if r.provenance == 'DERIVED' else ('mixed' if r.provenance == 'INFERRED' else 'no_rule')) }}">{{ r.provenance }}</span></td>
+        <td>
+          {% if r.conflict %}<p class="hint">The device reports this rule matched, but criteria observed in this log say it cannot be satisfied &mdash; not a reliable verdict.</p>{% endif %}
+          {% if r.failing_leaves %}
+          <ul class="evidence-list">{% for f in r.failing_leaves %}<li>{{ f }}</li>{% endfor %}</ul>
+          {% elif r.provenance == "INFERRED" %}
+          <p class="hint">The criteria this log shows are all satisfied; the rest are not visible in it. The device's own classification says this rule matched.</p>
+          {% elif r.provenance == "DERIVED" %}
+          <p class="hint">The criteria this log shows are satisfied and the rest is derived from the DiskEnc volume lines &mdash; see the criteria below. This result rests on an unverified mapping.</p>
+          {% endif %}
+          {% if r.unknown_leaves %}
+          <p class="hint">Not visible in this log:</p>
+          <ul class="evidence-list">{% for u in r.unknown_leaves %}<li>{{ u }}</li>{% endfor %}</ul>
+          {% endif %}
+          <details>
+            <summary>All {{ r.leaves|length }} criteria of this rule</summary>
+            <ul class="evidence-list">
+              {% for lf in r.leaves %}
+              <li>
+                <span class="status-badge status-{{ 'passed' if lf.status == 'TRUE' else ('failed' if lf.status == 'FALSE' else 'unavailable') }}">{{ lf.status }}</span>
+                <span class="hint">{{ lf.provenance }}</span>
+                {{ lf.description }}{% if lf.note %} <span class="hint">&mdash; {{ lf.note }}</span>{% endif %}
+                {% if lf.provenance == "DERIVED" and report.disk_encryption and report.disk_encryption.block_cycle %}
+                <table class="data-table">
+                  <thead><tr><th>Volume</th><th>Status</th><th>Media type</th><th>Counts toward the result</th></tr></thead>
+                  <tbody>
+                    {% for v in report.disk_encryption.block_cycle.volumes %}
+                    <tr data-disk-volume-row><td>{{ v.volume }}</td><td>{{ v.status }}</td><td>{{ v.mediatype }}</td><td>{{ "Yes" if v.counts else "No (not a fixed disk)" }}</td></tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+                {% endif %}
+              </li>
+              {% endfor %}
+            </ul>
+          </details>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% elif ev and ev.unattributed_reason %}
+  <p class="hint">{{ ev.unattributed_reason }}</p>
+  {% endif %}
+
+  <details {% if not (ev and ev.attributed) %}open{% endif %}>
+    <summary>Raw entries from the latest block ({{ s.entries_by_type.values()|map("length")|sum }})</summary>
+    <div class="table-scroll">
+    <table class="data-table">
+      <thead><tr><th>Check</th><th>#</th><th>Masked value(s), as logged</th><th>Status</th></tr></thead>
+      <tbody>
+        {% for check_type, entries in s.entries_by_type.items() %}
+        {% for e in entries %}
+        <tr>
+          <td>{{ check_type }}</td>
+          <td>{{ loop.index }}</td>
+          <td>{% for k, v in e["values"].items() %}<code>{{ k }}</code>: {{ v|join(", ") if v is not string else v }}{% if not loop.last %}; {% endif %}{% endfor %}</td>
+          <td>{% if e.status is sameas true %}<span class="status-badge status-passed">true</span>{% elif e.status is sameas false %}<span class="status-badge status-failed">false</span>{% else %}<span class="hint">(unreadable)</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </details>
+</div>
+{% endif %}
+
+{% if report.disk_encryption %}
+{% set de = report.disk_encryption %}
+{% set cyc = de.latest_cycle %}
+<div class="format-explainer" id="disk-encryption-panel">
+  <h2>Disk encryption (volume status)</h2>
+  <p class="hint">Windows logs one <code>DiskEnc</code> line per disk volume every evaluation cycle ({{ de.cycle_count }} cycle{{ "s" if de.cycle_count != 1 else "" }} in this log). Only <em>fixed</em> disks count toward the derived result below; any other media is listed for information only.</p>
+  <dl class="job-meta">
+    <dt>Latest cycle</dt><dd>{{ cyc.timestamp }} (log line {{ cyc.line_no }})</dd>
+  </dl>
+  {% if cyc.merged %}
+  <p class="hint">Two evaluations a few seconds apart were logged together in this cycle; the latest line per volume is shown.</p>
+  {% endif %}
+  <div class="table-scroll">
+  <table class="data-table">
+    <thead><tr><th>Volume</th><th>Status</th><th>Media type</th><th>Counts toward the result</th></tr></thead>
+    <tbody>
+      {% for v in cyc.volumes %}
+      <tr data-disk-volume-row><td>{{ v.volume }}</td><td>{{ v.status }}</td><td>{{ v.mediatype }}</td><td>{{ "Yes" if v.counts else "No (not a fixed disk)" }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% if de.has_direct_verdict_lines %}
+  <p class="hint">This log also contains the device's own per-product verdict lines for disk encryption (see the <code>disk_enc_check</code> row under Per-check results), so no result is derived from the volumes here.</p>
+  {% elif cyc.derived.verdict in ("TRUE", "FALSE") %}
+  <p><span class="status-badge status-derived">DERIVED {{ cyc.derived.verdict }}</span> {{ cyc.derived.reason }}.</p>
+  <p class="hint">{{ de.label }}. The mapping is applied to the {{ de.product }} criterion only, and a result that rests on it is never shown as OBSERVED.</p>
+  {% elif cyc.derived.verdict == "NO_RULE" %}
+  <p class="hint">{{ cyc.derived.reason }} &mdash; the client did not evaluate this criterion then, so nothing is derived.</p>
+  {% else %}
+  <p class="hint">No result derived: {{ cyc.derived.reason }}.</p>
+  {% endif %}
+
+  {% set sc = de.state_changes %}
+  <h3>Classification changes</h3>
+  {% if sc.total %}
+  <p class="hint">Each time the device's classification changed, with the volume status from the nearest evaluation cycle before it. Read-only context for judging the volume mapping: disk state is not the only factor, so a device can change class with its disk status unchanged.</p>
+  <div class="table-scroll">
+  <table class="data-table">
+    <thead><tr><th>Time</th><th>Change</th><th>Volumes in the nearest cycle before it</th></tr></thead>
+    <tbody>
+      {% for row in sc.rows %}
+      <tr data-state-change-row>
+        <td>{{ row.timestamp }}<br><span class="hint">log line {{ row.line_no }}</span></td>
+        <td>{{ row.from_label or "(none)" }} &rarr; {{ row.to_label or "(none)" }}</td>
+        <td>
+          {% if row.cycle %}
+          {% for v in row.cycle.volumes %}{{ v.volume }} {{ v.status }}{% if not v.counts %} (not a fixed disk){% endif %}{% if not loop.last %}, {% endif %}{% endfor %}
+          <br><span class="hint">cycle at {{ row.cycle.timestamp }}{% if row.cycle.seconds_before is not none %}, {{ row.cycle.seconds_before }} s before the change{% endif %}</span>
+          {% else %}
+          <span class="hint">no DiskEnc cycle before this change in the log</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% if sc.more %}<p class="hint">{{ sc.more }} more change{{ "s" if sc.more != 1 else "" }} (older) not shown.</p>{% endif %}
+  {% else %}
+  <p class="hint">No change of classification found in this log, so there is no disk state to line one up against.</p>
+  {% endif %}
+</div>
+{% endif %}
+
+<h2>Per-check results</h2>
+<p class="hint">One row per posture check documented for this platform (<a href="https://docs.netskope.com/en/device-classification-430812" target="_blank" rel="noopener">Netskope's device classification docs</a>). A check the platform is documented to support, but with no matching line in this log, is shown as "Applicable, not observed" - never silently omitted. Shown FAILED/MIXED/UNAVAILABLE first, since those are the ones worth a closer look.</p>
+
+<div class="filter-chip-row">
+  <button type="button" class="filter-chip active" data-status-filter="ALL">All</button>
+  <button type="button" class="filter-chip status-badge status-failed" data-status-filter="failed">FAILED</button>
+  <button type="button" class="filter-chip status-badge status-mixed" data-status-filter="mixed">MIXED</button>
+  <button type="button" class="filter-chip status-badge status-unavailable" data-status-filter="unavailable">UNAVAILABLE</button>
+  <button type="button" class="filter-chip status-badge status-passed" data-status-filter="passed">PASSED</button>
+  <button type="button" class="filter-chip status-badge status-no_rule" data-status-filter="no_rule">NO_RULE</button>
+  <button type="button" class="filter-chip status-badge status-applicable_not_observed" data-status-filter="applicable_not_observed">APPLICABLE_NOT_OBSERVED</button>
+</div>
+
+<div class="table-scroll">
+<table class="data-table">
+  <thead>
+    <tr><th>Check</th><th>Result</th><th>Evidence</th></tr>
+  </thead>
+  <tbody>
+    {% for row in report.rows %}
+    <tr data-status-row="{{ row.status_key }}">
+      <td>{{ row.check_type }}</td>
+      <td><span class="status-badge status-{{ row.status_key }}">{{ row.overall_label }}</span></td>
+      <td>
+        {% if row.evidence %}
+        <ul class="evidence-list">
+          {% for ev in row.evidence %}
+          <li{% if ev.capped_hidden %} class="evidence-hidden" hidden{% endif %}>
+            <span class="status-badge status-{{ ev.status_key }}">{{ ev.verdict }}</span>
+            line {{ ev.line_no }}: <code>{{ ev.raw_line }}</code>
+          </li>
+          {% endfor %}
+          {% if row.hidden_evidence_count %}
+          <li><button type="button" class="evidence-hidden-toggle" data-evidence-toggle>Show {{ row.hidden_evidence_count }} more line{{ "s" if row.hidden_evidence_count != 1 else "" }}</button></li>
+          {% endif %}
+        </ul>
+        {% else %}
+        <span class="hint">(no log line for this check type)</span>
+        {% endif %}
+        {% if row.derived %}
+        <p><span class="status-badge status-derived">DERIVED {{ row.derived.verdict }}</span> <span class="hint">{{ row.derived.label }} &mdash; volumes in the cycle at {{ row.derived.cycle_timestamp }}; see Disk encryption (volume status) above.</span></p>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+
+{% include "partials/back_link.html" %}
+<script src="/static/js/nsdebug-filter.js"></script>
+{% endblock %}

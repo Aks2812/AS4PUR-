@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Device Posture Validation — {{ app_name }}{% endblock %}
+{% block content %}
+<h1>Device Posture Validation</h1>
+<p class="step-indicator">Step 2 of 2 &middot; User email &middot; Tenant: {{ tenant }}</p>
+
+{% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+
+<form method="post" action="{{ action }}" class="stacked-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <label>User email
+    <input type="email" name="email" placeholder="e.g. user@example.com" value="{{ email_value or '' }}" required autocomplete="off">
+  </label>
+  <button type="submit">Look up</button>
+</form>
+{% include "partials/back_link.html" %}
+{% endblock %}

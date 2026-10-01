@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}RTP creation — {{ app_name }}{% endblock %}
+{% block content %}
+<h1>RTP creation</h1>
+<p class="step-indicator">Stage A, Step 3 of 3 &middot; Upload file &middot; Tenant: {{ tenant }}</p>
+
+{% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+
+{% include "partials/previously_processed.html" %}
+
+<div class="format-explainer">
+  <h2>Expected file format</h2>
+  <p>An Excel (.xlsx) file with a header row containing exactly these columns: <code>SAM Account Name</code>, <code>Display Name</code>.</p>
+  <ul>
+    <li><strong>SAM Account Name</strong> is the HR/AD export's login identifier (a bare username or a UPN) - not the real corporate email. If it has no "@" at all, the domain you supplied on the previous step is appended automatically before resolving it.</li>
+  </ul>
+  <p><a href="/operations/rtp-creation/template.xlsx">Download a starter template &darr;</a></p>
+</div>
+
+<form method="post" action="{{ action }}" enctype="multipart/form-data" class="stacked-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <label>Excel file
+    <input type="file" name="file" accept=".xlsx" required>
+  </label>
+  <button type="submit">Resolve identities</button>
+</form>
+{% include "partials/back_link.html" %}
+{% endblock %}

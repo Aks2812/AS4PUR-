@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}Already Completed — {{ app_name }}{% endblock %}
+{% block content %}
+<h1>You already completed this run</h1>
+<p>You already completed this {{ flow }} run - view it in your audit history.</p>
+<p><a href="{{ job_url }}">View job &rarr;</a></p>
+{% endblock %}

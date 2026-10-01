@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Device Posture Validation — {{ app_name }}{% endblock %}
+{% block content %}
+<h1>Device Posture Validation</h1>
+<p class="step-indicator">Choose how to check posture</p>
+
+{% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+
+<div class="card-grid">
+  <div class="op-card">
+    <h2>Look up live via API</h2>
+    <p>Look up a user's real device posture status straight from the tenant - read-only, nothing is changed on the tenant.</p>
+    {% include "partials/tenant_token_form.html" %}
+  </div>
+  <div class="op-card">
+    <h2>Already have a device's nsdebug.log?</h2>
+    <p>No tenant or token needed for this - it's a read of an already-collected file, not a live tenant call.</p>
+    <a href="/operations/device-posture/nsdebug-log">Analyze it directly &rarr;</a>
+  </div>
+</div>
+
+{% include "partials/back_link.html" %}
+{% endblock %}

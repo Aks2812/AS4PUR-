@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}RTP creation — Add Users to Existing Rule — {{ app_name }}{% endblock %}
+{% block content %}
+<h1>RTP creation — Add Users to Existing Rule</h1>
+<p class="step-indicator">Step 2 of 5 &middot; Target rule &middot; Tenant: {{ tenant }}</p>
+
+{% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+{% if rules_error %}
+<p class="alert alert-warn">Could not load the rule list: {{ rules_error }} You can still enter the rule ID directly below.</p>
+{% endif %}
+{% if selected_rule_vanished %}
+<div class="alert alert-warn">The rule you previously looked up (ID {{ selected_rule_id }}) no longer appears in this tenant's rule list - it may have been deleted, or you can still try looking it up directly by ID below.</div>
+{% endif %}
+
+{% if rules %}
+<p>Select the rule you want to add users to. Rule names are not guaranteed unique - check access method, app(s), and user count too if more than one row shares a name.</p>
+
+<div class="list-filter">
+  <input type="search" data-filter-target="rule-picker-list" placeholder="Filter by rule name...">
+</div>
+
+<form method="post" action="{{ action }}" class="stacked-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <div class="publisher-list" id="rule-picker-list">
+    {% for r in rules %}
+    <label class="publisher-row rule-row">
+      <input type="radio" name="rule_id" value="{{ r.rule_id }}" required{% if selected_rule_id is not none and selected_rule_id == (r.rule_id | string) %} checked{% endif %}>
+      <span class="rule-row-main">
+        <span class="rule-row-line1">
+          <span class="publisher-name">{{ r.rule_name }}</span>
+          {% if r.enabled %}
+          <span class="status-badge status-failed">ENABLED</span>
+          {% else %}
+          <span class="status-badge status-rule_disabled">DISABLED</span>
+          {% endif %}
+        </span>
+        <span class="rule-row-line2">{{ r.private_apps | join(", ") | replace("[", "") | replace("]", "") or "—" }}</span>
+      </span>
+      <span class="rule-row-meta">
+        <span>{{ r.access_method | join(", ") or "—" }}</span>
+        <span>{{ r.current_users | length }} user(s)</span>
+      </span>
+    </label>
+    {% endfor %}
+  </div>
+  <p class="list-filter-empty" data-filter-empty hidden>No rules match that filter.</p>
+  <button type="submit">Look up selected rule</button>
+</form>
+<script src="/static/js/list-filter.js"></script>
+{% elif not rules_error %}
+<p class="hint">This tenant has no NPA rules yet.</p>
+{% endif %}
+
+<details{% if not rules %} open{% endif %}>
+  <summary>Enter a rule ID manually</summary>
+  <p class="hint">Useful if the list above fails to load, or if you already have an ID from a shared link.</p>
+  <form method="post" action="{{ action }}" class="stacked-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <label>Rule ID
+      <input type="text" name="rule_id" placeholder="e.g. 130" required autocomplete="off">
+    </label>
+    <button type="submit">Look up rule</button>
+  </form>
+</details>
+{% include "partials/back_link.html" %}
+{% endblock %}

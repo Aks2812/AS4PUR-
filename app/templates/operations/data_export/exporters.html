@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Data Export — {{ app_name }}{% endblock %}
+{% block content %}
+<h1>Data Export</h1>
+<p class="step-indicator">Step 2 of 2 &middot; Choose what to export &middot; Tenant: {{ tenant }}</p>
+
+{% if error %}<div class="alert alert-error" role="alert">{{ error }}</div>{% endif %}
+
+<p class="hint"><strong>Handle the files as sensitive data.</strong> They contain user identities (names, email addresses, group memberships) and internal network destinations. Nothing is saved on this server: a finished export stays available for a few minutes in memory only, for your session only.</p>
+
+<div class="card-grid">
+  <div class="op-card">
+    <h2>Private apps</h2>
+    <p>One CSV with every private app, checked against the total the tenant reports. Includes each app's protocols and ports (TCP and UDP) in the format Private app definition accepts.</p>
+    <form method="post" action="/operations/data-export/private-apps" class="stacked-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button type="submit">Export private apps</button>
+    </form>
+  </div>
+  <div class="op-card">
+    <h2>Users &amp; groups</h2>
+    <p>Three CSVs &mdash; users (one row per account), groups, and memberships &mdash; plus one ZIP with all three.</p>
+    <form method="post" action="/operations/data-export/users-groups" class="stacked-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label class="review-gate">
+        <input type="checkbox" name="include_deleted" value="on"{% if include_deleted %} checked{% endif %}>
+        Include deleted accounts
+      </label>
+      <p class="hint">Off by default: only live accounts are exported. A user can have a deleted account next to a live one, so turning this on adds those rows.</p>
+      <button type="submit">Export users &amp; groups</button>
+    </form>
+  </div>
+</div>
+<p class="hint">Large tenants can take up to a minute: users and groups are read a page at a time, deliberately paced to stay inside the tenant's rate limits.</p>
+
+{% include "partials/back_link.html" %}
+{% endblock %}

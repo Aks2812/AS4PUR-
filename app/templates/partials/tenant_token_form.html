@@ -1,0 +1,25 @@
+{#
+  Reusable "enter tenant + token" step (CLAUDE.md Section 3), shared by
+  every operation. Include at the start of an operation's flow:
+
+    {% include "partials/tenant_token_form.html" %}
+
+  The including page must provide `action` (the form's target URL) and
+  `csrf_token` in its own render context.
+
+  The token field is type="password" with autocomplete="off" so it isn't
+  visible-by-default or offered for browser autofill/save - it is never
+  persisted server-side beyond the single request/job that uses it
+  (CLAUDE.md Section 3).
+#}
+<form method="post" action="{{ action }}" class="stacked-form tenant-token-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <label>Tenant name
+    <input type="text" name="tenant" placeholder="e.g. my-tenant" value="{{ tenant_value or '' }}" required autocomplete="off">
+  </label>
+  <label>API token
+    <input type="password" name="token" required autocomplete="off">
+  </label>
+  <p class="hint">Your token is used only for this run and is never saved - you'll enter it again next time.</p>
+  <button type="submit">Continue</button>
+</form>

@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% import "partials/icons.html" as icons %}
+{% block title %}Dashboard — {{ app_name }}{% endblock %}
+{% block main_class %}dashboard-shell{% endblock %}
+{% block content %}
+<div class="dashboard-banner">
+  <h1>Welcome back, {{ user.username }}</h1>
+  <p>Choose an operation below, or check recent activity.</p>
+</div>
+<div class="dashboard-body">
+  <div class="stat-grid">
+    <div class="stat-card">
+      <span class="stat-label">In progress</span>
+      <span class="stat-value">{{ stats.in_progress_jobs }}</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Pending invites</span>
+      <span class="stat-value">{{ stats.pending_invites }}</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Failed logins (24h)</span>
+      <span class="stat-value">{{ stats.failed_logins_24h }}</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Jobs this week</span>
+      <span class="stat-value">{{ stats.jobs_this_week }}</span>
+    </div>
+  </div>
+
+  <div class="op-grid">
+    <div class="op-card{% if op_activity.private_app_import %} op-card--recent-activity{% endif %}">
+      <div class="op-icon">{{ icons.ti_icon("upload") }}</div>
+      <h2 class="op-title">Private app definition</h2>
+      <p class="op-meta">Bulk-create Netskope Private App Segments from an Excel file.</p>
+      <a href="/operations/private-app-import">Start &rarr;</a>
+    </div>
+    <div class="op-card{% if op_activity.rtp_creation %} op-card--recent-activity{% endif %}">
+      <div class="op-icon">{{ icons.ti_icon("lock") }}</div>
+      <h2 class="op-title">RTP creation</h2>
+      <p class="op-meta">Bulk-create NPA access policies for a list of users.</p>
+      <a href="/operations/rtp-creation">Start &rarr;</a>
+    </div>
+    <div class="op-card{% if op_activity.local_group_import %} op-card--recent-activity{% endif %}">
+      <div class="op-icon">{{ icons.ti_icon("users") }}</div>
+      <h2 class="op-title">User provision</h2>
+      <p class="op-meta">Create SCIM users/groups for populations with no Entra/SCIM pipeline of their own.</p>
+      <a href="/operations/local-group-import">Start &rarr;</a>
+    </div>
+    <div class="op-card">
+      <div class="op-icon">{{ icons.ti_icon("device-laptop") }}</div>
+      <h2 class="op-title">Device Posture Validation</h2>
+      <p class="op-meta">Look up a user's real device posture status and candidate classification rules.</p>
+      <a href="/operations/device-posture">Start &rarr;</a>
+    </div>
+    <div class="op-card">
+      <div class="op-icon">{{ icons.ti_icon("download") }}</div>
+      <h2 class="op-title">Data Export</h2>
+      <p class="op-meta">Export private apps (with protocols and ports) and users &amp; groups to CSV.</p>
+      <a href="/operations/data-export">Start &rarr;</a>
+    </div>
+  </div>
+
+  <p class="dashboard-links"><a href="/jobs">View audit history &rarr;</a> &middot; <a href="/help">How this works &rarr;</a></p>
+</div>
+{% endblock %}

@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}Session Expired — {{ app_name }}{% endblock %}
+{% block content %}
+<h1>Your progress here isn't available anymore</h1>
+<p>Your session expired after 30 minutes of inactivity - start again.</p>
+<p><a href="{{ restart_url }}">Start again &rarr;</a></p>
+{% endblock %}

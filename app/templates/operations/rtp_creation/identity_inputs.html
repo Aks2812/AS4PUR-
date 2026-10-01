@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}RTP creation — {{ app_name }}{% endblock %}
+{% block content %}
+<h1>RTP creation</h1>
+<p class="step-indicator">Stage A, Step 2 of 3 &middot; Identity resolution setup &middot; Tenant: {{ tenant }}</p>
+
+{% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+
+<p>These two values are specific to this tenant - a different tenant will have a different sync group and email domain, so neither is assumed or remembered.</p>
+
+<form method="post" action="{{ action }}" class="stacked-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <label>SCIM sync group name <span class="hint">(optional)</span>
+    <input type="text" name="scim_group" placeholder="EXAMPLE-GROUP" value="{{ scim_group_value or '' }}" autocomplete="off">
+    <span class="hint">Leave blank to search the entire tenant directory instead of one group. Searching the full directory takes roughly 8x longer for a tenant this size.</span>
+  </label>
+  <label>Corporate email domain
+    <input type="text" name="email_domain" placeholder="e.g. example.com" value="{{ email_domain_value or '' }}" required autocomplete="off">
+    <span class="hint">Appended automatically to any uploaded SAM Account Name that has no "@" at all.</span>
+  </label>
+  <button type="submit">Continue</button>
+</form>
+{% include "partials/back_link.html" %}
+{% endblock %}

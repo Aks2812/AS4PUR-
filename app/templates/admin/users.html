@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Users — {{ app_name }}{% endblock %}
+{% block content %}
+<h1>Users</h1>
+<p><a href="/admin">&larr; Admin</a></p>
+
+{% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+
+{% if new_temp_password %}
+<div class="alert alert-warn">
+  <strong>Temporary password generated for {{ new_temp_password.username }}.</strong> Copy this now and hand it off securely (Slack, Tag, etc.) - it's shown once, right now, and never again, and is not recoverable afterward:
+  <p><code>{{ new_temp_password.password }}</code></p>
+  Every session that account held has been invalidated. They'll be required to set a real password on next login.
+</div>
+{% endif %}
+
+{% if not rows %}
+<p>No users yet.</p>
+{% else %}
+<div class="table-scroll">
+<table class="data-table">
+  <thead><tr><th>Username</th><th>Role</th><th>Status</th><th>Created</th><th>Last login</th><th>Change role</th><th>Password</th><th>Active</th></tr></thead>
+  <tbody>
+    {% for row in rows %}
+    <tr>
+      <td>{{ row.username }}{% if request.state.session.user.id == row.id %} <em>(you)</em>{% endif %}</td>
+      <td>{{ row.role.value }}</td>
+      <td>
+        <span class="status-badge status-{{ 'active' if row.is_active else 'inactive' }}">{{ 'active' if row.is_active else 'inactive' }}</span>
+        {% if row.must_change_password %}<span class="status-badge status-pending">must change password</span>{% endif %}
+      </td>
+      <td>{{ row.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
+      <td>{{ row.last_login_at.strftime("%Y-%m-%d %H:%M") if row.last_login_at else "never" }}</td>
+      <td>
+        <form method="post" action="/admin/users/{{ row.id }}/role" class="role-select-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <select name="role" class="select-input">
+            {% for r in roles %}
+            <option value="{{ r.value }}" {% if r == row.role %}selected{% endif %}>{{ r.value }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="btn-outline">Change</button>
+        </form>
+      </td>
+      <td>
+        <form method="post" action="/admin/users/{{ row.id }}/force-password-reset">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button type="submit" class="link-button">Force reset on next login</button>
+        </form>
+        <form method="post" action="/admin/users/{{ row.id }}/reset-password">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button type="submit" class="link-button">Reset password directly</button>
+        </form>
+      </td>
+      <td>
+        {% if request.state.session.user.id == row.id %}
+        <em>Ask another admin to deactivate your own account.</em>
+        {% elif row.is_active %}
+        <form method="post" action="/admin/users/{{ row.id }}/deactivate">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button type="submit" class="link-button">Deactivate</button>
+        </form>
+        {% else %}
+        <form method="post" action="/admin/users/{{ row.id }}/reactivate">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button type="submit" class="link-button">Reactivate</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+{% endblock %}

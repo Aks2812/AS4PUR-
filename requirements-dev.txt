@@ -1,0 +1,20 @@
+-r requirements.txt
+pytest>=8.0,<9.0
+httpx>=0.27,<1.0
+responses>=0.25,<1.0
+# Real-browser regression coverage only (tests/test_rtp_creation_search_filter.py) -
+# a CSS-specificity bug (row.hidden defeated by an unrelated `display: flex`
+# rule) reproduced in a real rendering engine but NOT in any pure-Python
+# DOM-attribute assertion, so this is the only thing that actually catches
+# that class of bug. Skipped automatically (pytest.importorskip) wherever
+# it or its browser binary isn't installed - not required for the rest of
+# the suite. One-time setup: `playwright install chromium`.
+playwright>=1.40,<2.0
+# 2026-09-16 - a real-browser test file hung indefinitely (root cause:
+# ThreadingHTTPServer's non-daemon worker threads, see
+# tests/test_landing_lang_dropdown.py's own header comment) and locked up
+# the whole invoking shell/CLI session for 20+ minutes with no error, no
+# traceback, nothing to interrupt automatically. `--timeout` (pytest.ini)
+# now bounds every test's total runtime (fixture setup/teardown included)
+# so a future hang fails loudly in seconds instead of blocking forever.
+pytest-timeout>=2.3,<3.0

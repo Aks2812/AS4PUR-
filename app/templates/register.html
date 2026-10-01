@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Set Your Password — {{ app_name }}{% endblock %}
+{% block content %}
+<div class="auth-card">
+  <h1>{{ app_name }}</h1>
+  <p class="subtitle">Create your account</p>
+
+  {% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+
+  <form method="post" action="/register/{{ token }}" class="stacked-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <label>Email
+      <input type="text" value="{{ email }}" disabled>
+    </label>
+    <label>Password
+      <input type="password" name="password" autocomplete="new-password" required autofocus minlength="12">
+    </label>
+    <label>Confirm password
+      <input type="password" name="confirm_password" autocomplete="new-password" required minlength="12">
+    </label>
+    <p class="hint">At least 12 characters.</p>
+    <button type="submit">Create account</button>
+  </form>
+</div>
+{% endblock %}

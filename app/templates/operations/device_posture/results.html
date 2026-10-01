@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Device Posture Validation — Results — {{ app_name }}{% endblock %}
+{% block content %}
+<h1>Device Posture Validation</h1>
+<p class="step-indicator">Results &middot; Tenant: {{ tenant }} &middot; {{ email }}</p>
+
+{% if no_devices_message %}
+<div class="alert alert-warn">{{ no_devices_message }}</div>
+{% endif %}
+
+{% if fetch_error %}
+<div class="alert alert-error">Could not fetch device classification rules: {{ fetch_error }} Devices are still shown below without candidate rules.</div>
+{% endif %}
+
+{% for device in devices %}
+<div class="format-explainer">
+  <h2>{{ device.hostname }}</h2>
+  <dl class="job-meta">
+    <dt>OS</dt><dd>{{ device.os }}</dd>
+    <dt>Classification status</dt><dd>{{ device.device_classification_status }}</dd>
+    {% if device.device_classification_custom_status %}
+    <dt>Custom status</dt><dd>{{ device.device_classification_custom_status }}</dd>
+    {% endif %}
+  </dl>
+
+  <h3>Candidate classification rules (OS-matching, not a determination)</h3>
+  <p class="hint">Every rule whose OS matches this device is shown below - which single rule (if any) actually applies to this device isn't understood yet. Use these as reference candidates, not a definitive answer.</p>
+
+  {% if device.candidate_rules %}
+  {% for rule in device.candidate_rules %}
+  <div class="format-explainer">
+    <h4>Rule {{ rule.rule_id }} &middot; {{ rule.name }}</h4>
+    <p>{{ rule.rendered_conditions }}</p>
+  </div>
+  {% endfor %}
+  {% else %}
+  <p class="hint">No OS-matching classification rules found for this device.</p>
+  {% endif %}
+</div>
+{% endfor %}
+
+{% if devices %}
+<div class="alert alert-warn">
+  Per-criteria pass/fail requires the device's own client log, which currently must be collected manually via the Netskope tenant UI (Settings &rarr; Security Cloud Platform &rarr; Netskope Client &rarr; Devices &rarr; [user] &rarr; Collect log) - automated retrieval is blocked on an unresolved session-token requirement. Once collected, <a href="/operations/device-posture/nsdebug-log">upload the nsdebug.log here</a> to see the per-criteria breakdown.
+</div>
+{% endif %}
+
+<p class="back-link-row"><a href="/operations/device-posture/lookup" class="back-link"><span aria-hidden="true">&larr;</span>Look up another user</a></p>
+{% include "partials/back_link.html" %}
+{% endblock %}

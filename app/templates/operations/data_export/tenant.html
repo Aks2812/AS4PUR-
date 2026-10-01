@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Data Export — {{ app_name }}{% endblock %}
+{% block content %}
+<h1>Data Export</h1>
+<p class="step-indicator">Step 1 of 2 &middot; Choose the tenant</p>
+
+{% if error %}<div class="alert alert-error" role="alert">{{ error }}</div>{% endif %}
+
+<div class="format-explainer">
+  <h2>What this exports</h2>
+  <ul>
+    <li><strong>Private apps</strong> &mdash; one row per private app: Netskope's own export columns, plus the protocols and ports its own export leaves out, the publishers and whether each can reach the app, policies, tags and more.</li>
+    <li><strong>Users &amp; groups</strong> &mdash; every user account and group on the tenant (SCIM, Local and AD), and which account belongs to which group.</li>
+  </ul>
+  <p class="hint">Read-only: nothing is created, changed or deleted on the tenant. Each export is checked against the totals Netskope itself reports; if they don't match you get an explanation instead of a file, so an incomplete export is never handed over as a complete one.</p>
+</div>
+
+{% include "partials/tenant_token_form.html" %}
+
+{% include "partials/back_link.html" %}
+{% endblock %}

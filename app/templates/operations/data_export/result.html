@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Data Export — {{ app_name }}{% endblock %}
+{% block content %}
+<h1>Data Export</h1>
+<p class="step-indicator">Export ready &middot; Tenant: {{ tenant }}</p>
+
+{% if warnings %}
+<div class="warnings-block">
+  <strong>Warnings</strong>
+  <ul>{% for w in warnings %}<li>{{ w }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+<h2>What was read</h2>
+<div class="table-scroll">
+<table class="data-table">
+  <tbody>
+    {% if result.kind == "private_apps" %}
+    <tr><th scope="row">Private apps exported</th><td>{{ summary.apps_exported }} of {{ summary.apps_total }} reported by the tenant</td></tr>
+    {% else %}
+    <tr><th scope="row">Users read</th><td>{{ summary.users }} of {{ summary.users_total }} reported by the tenant</td></tr>
+    <tr><th scope="row">Accounts</th><td>{{ summary.accounts }} (live {{ summary.live_accounts }}, deleted {{ summary.deleted_accounts }})</td></tr>
+    <tr><th scope="row">Groups read</th><td>{{ summary.groups }} of {{ summary.groups_total }} reported by the tenant</td></tr>
+    <tr><th scope="row">Memberships in the files</th><td>{{ summary.memberships }}</td></tr>
+    <tr><th scope="row">Deleted accounts</th><td>{% if summary.include_deleted %}Deleted accounts are included in the files.{% else %}Not included &mdash; live accounts only.{% endif %}</td></tr>
+    <tr>
+      <th scope="row">Live accounts vs the tenant's own count</th>
+      <td>{{ summary.live_accounts }} read, {% if summary.counts_total_users is none %}the tenant's count (<code>/users/counts</code>) could not be read{% else %}{{ summary.counts_total_users }} reported by <code>/users/counts</code>{% endif %}</td>
+    </tr>
+    {% endif %}
+  </tbody>
+</table>
+</div>
+
+<h2>Download</h2>
+<ul class="evidence-list">
+  {% for d in downloads %}
+  <li><a class="btn-outline" href="{{ d.href }}">{{ d.label }}</a> <span class="hint">{{ d.filename }}{% if d.rows is not none %} &middot; {{ d.rows }} row{{ "s" if d.rows != 1 else "" }}{% endif %}</span></li>
+  {% endfor %}
+</ul>
+
+<p class="hint">These files stay available for {{ ttl_minutes }} minutes, held in memory only &mdash; they are never saved on the server and only this session can download them. After that, run the export again.</p>
+<p class="hint">
+  All dates are ISO 8601 in UTC (e.g. 2025-08-19T06:35:51Z).
+  {% if result.kind == "private_apps" %}Netskope's API gives an app's Last Modified time without a timezone; it is written as UTC, which is inferred from the timestamps the same API states explicitly in UTC, not confirmed by Netskope.{% endif %}
+</p>
+
+{% include "partials/back_link.html" %}
+{% endblock %}

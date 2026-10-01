@@ -1,0 +1,102 @@
+[Unit]
+Description=AS4PUR - Netskope Operations Portal
+After=network.target
+
+[Service]
+Type=simple
+User=as4pur
+Group=as4pur
+WorkingDirectory=/opt/as4pur
+EnvironmentFile=/opt/as4pur/.env
+# Pin the worker count so an inherited WEB_CONCURRENCY cannot start extra workers (README, "Run").
+Environment=WEB_CONCURRENCY=1
+
+# --workers is deliberately omitted, and must stay that way: the
+# background-job token-handling design (CLAUDE.md Section 3) passes the
+# operator's Netskope API token straight into an in-process thread, never
+# into a queue or the database. A job started in one worker process would
+# not be visible to, or pollable from, any other worker. Do not add
+# --workers N>1 here, and do not front this with a multi-process
+# Gunicorn setup.
+ExecStart=/opt/as4pur/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
+
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/opt/as4pur/data
+ProtectHome=true
+
+# Host-hardening pass, 2026-09-13 - standard-safe sandboxing for a plain
+# network service like this one (no legitimate need for tmp-file sharing
+# outside its own private tmp, kernel/module/cgroup access, device nodes,
+# extra namespaces, non-default personalities, or writable+executable
+# memory). Near-zero legitimate-breakage risk; still worth a real restart
+# + smoke test once this reaches the live host, same as any unit-file
+# change.
+PrivateTmp=true
+CapabilityBoundingSet=
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+PrivateDevices=true
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+
+# Resource limits - starting points, tune after watching real usage
+# (CLAUDE.md Section 2: low concurrency, single/few operators; the host
+# itself is 6 vCPU/8GB).
+#   MemoryMax=512M   - comfortably covers CPython + FastAPI/SQLAlchemy's
+#     baseline footprint, several times over AS4PUR_UPLOAD_MAX_BYTES
+#     (10MB) of transient parsing overhead for the largest allowed
+#     Excel/CSV upload - and for AS4PUR_NSDEBUG_UPLOAD_MAX_BYTES (50MB):
+#     the nsdebug parser streams line by line, and measured peak Python
+#     allocation on the real logs was about 1x file size or less (8.7MB
+#     for the 9.09MB macOS log, 2026-09-29), so a max-size log stays far
+#     inside this - and the in-process background job threads (app/jobs/
+#     manager.py) - with real headroom to spare on an 8GB host. Exceeding
+#     it kills only this unit's cgroup (Restart=on-failure brings it back
+#     up), not the host - watch `journalctl -u as4pur` for OOM kills
+#     early on rather than assuming this number is right.
+#   TasksMax=512     - single Uvicorn process, no --workers (see above) -
+#     covers the asyncio event loop, FastAPI's sync-route threadpool, and
+#     this app's own job threads with generous headroom, while still
+#     capping a genuine runaway (e.g. a thread-leak bug) well short of
+#     exhausting the host's PID table.
+#   LimitNOFILE=4096 - default is often 1024, which can get tight between
+#     Nginx's proxied keep-alive connections, SQLite WAL mode (3 file
+#     handles per connection: main db + -wal + -shm), and open upload
+#     temp files during a batch import - 4096 is a generous, standard
+#     bump, not a scale-specific calculation.
+MemoryMax=512M
+TasksMax=512
+LimitNOFILE=4096
+
+# UNVERIFIED against a live running instance - if the app fails to start,
+# or can't reach Netskope's API after deployment, comment out these two
+# lines first and report back before trying anything else. AF_INET/
+# AF_INET6 covers inbound loopback from Nginx and outbound HTTPS to
+# Netskope's API (the only two things this app's network code does);
+# @system-service is systemd's own standard broad-safe syscall profile
+# for network services. Both are the kind of thing that needs a real
+# functional test - login works, an outbound Netskope API call succeeds,
+# a file upload/DB write works - not just "the unit file parses", so
+# neither has been applied against anything live.
+#
+# SPECIFIC likely failure mode to check FIRST if the service fails to
+# start at all (not just misbehaves): requirements.txt pins
+# `uvicorn[standard]`, which pulls in uvloop on Linux, and Uvicorn's
+# default `--loop auto` (unset here) picks uvloop when it's installed.
+# uvloop wraps libuv, which commonly opens an AF_UNIX socketpair
+# internally for its own event-loop wakeup mechanism - a real, previously
+# reported class of RestrictAddressFamilies breakage with libuv-based
+# loops, not a hypothetical one. If startup fails specifically around
+# event-loop init (not a Netskope-API-reachability symptom), try adding
+# AF_UNIX to the line below before disabling this hardening entirely:
+# RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictAddressFamilies=AF_INET AF_INET6
+SystemCallFilter=@system-service
+
+[Install]
+WantedBy=multi-user.target

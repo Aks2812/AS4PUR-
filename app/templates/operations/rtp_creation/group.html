@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}RTP creation — {{ app_name }}{% endblock %}
+{% block content %}
+<h1>RTP creation</h1>
+<p class="step-indicator">Stage B, Step 1 of 3 &middot; Choose policy group &middot; Tenant: {{ tenant }}</p>
+
+{% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+{% if selected_group_vanished %}
+<div class="alert alert-warn">The policy group you previously selected (ID {{ selected_group_id }}) no longer appears in this tenant's group list and will need to be re-chosen below.</div>
+{% endif %}
+
+<p>Select which policy group the new rule should land in. This list is fetched live from the tenant - never trust a group's displayed number elsewhere in the Netskope UI as its real ID; that ordinal is a different, UI-context-specific value.</p>
+
+<form method="post" action="{{ action }}" class="stacked-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <div class="publisher-list">
+    {% for g in groups %}
+    <label class="publisher-row">
+      <input type="radio" name="group_id" value="{{ g.group_id }}" required{% if selected_group_id == g.group_id %} checked{% endif %}>
+      <span class="publisher-name">{{ g.group_name }}</span>
+      <span class="publisher-id">ID {{ g.group_id }}</span>
+    </label>
+    {% endfor %}
+  </div>
+  <button type="submit">Continue</button>
+</form>
+{% include "partials/back_link.html" %}
+{% endblock %}

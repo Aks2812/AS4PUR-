@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}RTP creation — Review Identities — {{ app_name }}{% endblock %}
+{% block content %}
+<h1>RTP creation</h1>
+<p class="step-indicator">Review Gate 1 of 2 &middot; Identity resolution &middot; Tenant: {{ tenant }} &middot; File: {{ filename }}</p>
+
+{% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+
+<p class="hint">
+  {% if resolution.scim_group %}
+    Searched group <strong>{{ resolution.scim_group }}</strong> ({{ resolution.population_size }} member(s) considered).
+  {% else %}
+    Searched the <strong>full tenant directory</strong> ({{ resolution.population_size }} account(s) considered).
+  {% endif %}
+</p>
+
+<div class="summary-counts">
+  <span class="count-pill count-create">{{ resolution.matched_count }} matched</span>
+  <span class="count-pill count-exclude">{{ resolution.unmatched_count }} unmatched</span>
+  {% if resolution.ambiguous_count %}
+  <span class="count-pill count-warn">{{ resolution.ambiguous_count }} ambiguous — needs review</span>
+  {% endif %}
+</div>
+
+<p>An unmatched user is not necessarily a data-entry error - it can mean a real account with no membership in the sync group you specified (or, for a full-directory search, no account matching that name at all). Unmatched users are excluded from the rule; review this list before proceeding.</p>
+{% if resolution.ambiguous_count %}
+<p class="hint">An <strong>ambiguous</strong> row means this file's identifier value matched two different real accounts at once - one by username, a different one by email address. Neither is picked automatically; these rows are excluded from the rule until someone manually confirms which account is actually meant.</p>
+{% endif %}
+
+<div class="table-scroll">
+<table class="data-table">
+  <thead><tr><th>SAM Account Name</th><th>Display Name</th><th>Status</th><th>Resolved email</th></tr></thead>
+  <tbody>
+    {% for row in resolution.rows %}
+    <tr>
+      <td>{{ row.upn }}</td>
+      <td>{{ row.display_name or "—" }}</td>
+      <td><span class="status-badge status-{{ row.status|lower }}">{{ row.status }}</span></td>
+      <td>{{ row.email or "—" }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+
+<form method="post" action="{{ action }}" class="stacked-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <label class="review-gate">
+    <input type="checkbox" name="reviewed" value="yes" data-confirm-gate>
+    I have reviewed the results above.
+  </label>
+  <button type="submit">Proceed to Stage B &mdash; rule creation</button>
+</form>
+<script src="/static/js/confirm-gate.js"></script>
+{% include "partials/back_link.html" %}
+{% endblock %}

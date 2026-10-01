@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}RTP creation — {{ app_name }}{% endblock %}
+{% block content %}
+<h1>RTP creation</h1>
+<p class="step-indicator">Stage A, Step 1 of 3 &middot; Tenant &amp; token</p>
+
+{% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+
+{% include "partials/tenant_token_form.html" %}
+{% include "partials/back_link.html" %}
+{% endblock %}

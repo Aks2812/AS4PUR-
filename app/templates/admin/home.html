@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Admin — {{ app_name }}{% endblock %}
+{% block content %}
+<h1>Admin</h1>
+<div class="card-grid">
+  <div class="op-card">
+    <h2>Invites</h2>
+    <p>Invite a new operator or admin, or review pending/used/expired invites.</p>
+    <a href="/admin/invites">Manage invites &rarr;</a>
+  </div>
+  <div class="op-card">
+    <h2>Users</h2>
+    <p>See every real account, and deactivate or reactivate one.</p>
+    <a href="/admin/users">Manage users &rarr;</a>
+  </div>
+</div>
+{% endblock %}

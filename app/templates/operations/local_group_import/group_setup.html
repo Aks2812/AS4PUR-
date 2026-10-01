@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}User provision — {{ app_name }}{% endblock %}
+{% block content %}
+<h1>User provision</h1>
+<p class="step-indicator">Step 2 of 4 &middot; Acknowledgment &amp; group choice &middot; Tenant: {{ tenant }}</p>
+
+{% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+
+<form method="post" action="{{ action }}" class="stacked-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+  <fieldset>
+    <legend>Group</legend>
+    <div class="publisher-list">
+      <label class="publisher-row">
+        <input type="radio" name="group_choice" value="none" required{% if selected_group_choice == "none" %} checked{% endif %}>
+        <span class="publisher-name">No group (users only)</span>
+      </label>
+      {% for g in groups %}
+      <label class="publisher-row">
+        <input type="radio" name="group_choice" value="existing_{{ g.group_id }}" required{% if selected_group_choice == ("existing_" ~ g.group_id) %} checked{% endif %}>
+        <span class="publisher-name">Add to existing group: {{ g.group_name }}</span>
+        <span class="publisher-id">ID {{ g.group_id }}</span>
+      </label>
+      {% endfor %}
+      <label class="publisher-row">
+        <input type="radio" name="group_choice" value="new" required{% if selected_group_choice == "new" %} checked{% endif %}>
+        <span class="publisher-name">Create a new group</span>
+      </label>
+    </div>
+    <label>New group name <span class="hint">(only used if "Create a new group" is selected above)</span>
+      <input type="text" name="new_group_name" placeholder="e.g. External-Users" value="{{ new_group_name_value or '' }}" autocomplete="off">
+      <span class="hint">If a group with this name already exists, users will be added to that existing group instead of creating a duplicate.</span>
+    </label>
+  </fieldset>
+
+  <label class="review-gate">
+    <input type="checkbox" name="acknowledged" value="yes" data-confirm-gate>
+    I confirm these users are not managed via this tenant's Entra ID/SCIM sync - this is only for a population genuinely outside any existing sync pipeline, not a workaround for a gap in one.
+  </label>
+  <p class="hint">This box is never pre-checked, even when returning here via Back - it's a deliberate safety gate, not a remembered preference.</p>
+
+  <button type="submit">Continue</button>
+</form>
+<script src="/static/js/confirm-gate.js"></script>
+{% include "partials/back_link.html" %}
+{% endblock %}

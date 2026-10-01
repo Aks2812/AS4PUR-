@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}User provision — {{ app_name }}{% endblock %}
+{% block content %}
+<h1>User provision</h1>
+<p class="step-indicator">Step 3 of 4 &middot; Upload file &middot; Tenant: {{ tenant }}</p>
+
+{% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+{% if group_note %}<div class="alert alert-warn">{{ group_note }}</div>{% endif %}
+
+{% include "partials/previously_processed.html" %}
+
+<div class="format-explainer">
+  <h2>Expected file format</h2>
+  <p>A CSV or Excel (.xlsx) file with a header row containing a column named exactly <code>Email</code>, anywhere in the row. Extra columns are fine and are simply ignored.</p>
+  <p><a href="/operations/local-group-import/template.xlsx">Download a starter template &darr;</a></p>
+</div>
+
+<form method="post" action="{{ action }}" enctype="multipart/form-data" class="stacked-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <label>CSV or Excel file
+    <input type="file" name="file" accept=".csv,.xlsx" required>
+  </label>
+  <button type="submit">Analyze file</button>
+</form>
+{% include "partials/back_link.html" %}
+{% endblock %}

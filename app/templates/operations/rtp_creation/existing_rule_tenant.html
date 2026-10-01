@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}RTP creation — Add Users to Existing Rule — {{ app_name }}{% endblock %}
+{% block content %}
+<h1>RTP creation — Add Users to Existing Rule</h1>
+<p class="step-indicator">Step 1 of 5 &middot; Tenant &amp; token</p>
+
+{% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+
+{% include "partials/tenant_token_form.html" %}
+{% include "partials/back_link.html" %}
+{% endblock %}

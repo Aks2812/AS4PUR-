@@ -1,0 +1,1051 @@
+/* Self-hosted Plus Jakarta Sans (2026-09-13 design-system pass) - files
+   under app/static/fonts/, served same-origin so the existing strict CSP
+   (font-src 'self', app/middleware.py) covers this with zero changes.
+   Deliberately NOT fonts.googleapis.com/fonts.gstatic.com - that would
+   widen a control hardened earlier in this project for no real benefit
+   (self-hosting two files is trivial and keeps the app fully functional
+   with zero external calls, matching CLAUDE.md Section 2's LAN-only
+   design).
+
+   Both files are Google's own variable-font builds (confirmed via the
+   generated @font-face src URLs being IDENTICAL across the 300/500/700
+   static declarations below - one variable file, three pinned
+   `font-weight` instances, exactly how Google's own css2 API serves
+   this typeface) - only the "latin" Unicode subset was kept (this is an
+   English-only internal tool), not the full cyrillic/vietnamese/greek
+   subsets Google's default request bundles, so this is two small files,
+   not eight. */
+@font-face {
+  font-family: "Plus Jakarta Sans";
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url("/static/fonts/PlusJakartaSans-latin.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Plus Jakarta Sans";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/static/fonts/PlusJakartaSans-latin.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Plus Jakarta Sans";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/static/fonts/PlusJakartaSans-latin.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Plus Jakarta Sans";
+  font-style: italic;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/static/fonts/PlusJakartaSans-Italic-latin.woff2") format("woff2");
+}
+
+:root {
+  /* Brand palette (2026-09-13 design-system pass). */
+  --color-bg-dark: #0E2148;      /* navy - STRUCTURAL chrome only (sidebar, dashboard banner, login panel) - never general body text or page backgrounds */
+  --color-accent: #D9700F;       /* unified orange - every button, active nav state, and badge uses this ONE shade, never a second accent color */
+  /* Indigo accent - reserved for exactly ONE subtle use in the whole app
+     (per 2026-09-13 correction: the pending-invites status dot on the
+     dashboard) - never a general-purpose color, never a second accent.
+     An earlier pass spent this on the brand mark's circuit pins/traces
+     instead - wrong, since that mark is a real provided asset file now
+     (app/static/icons/as4pur-mark.svg), not a hand-built SVG, and
+     contains no indigo at all. NOT YET APPLIED anywhere - the
+     pending-invites status dot itself doesn't exist in the markup yet;
+     this variable is defined so the reserved value exists, without
+     inventing the dot's own exact visual treatment (position/size) from
+     prose alone. */
+  --color-accent-trace: #6C63FF;
+  --color-surface: #ffffff;
+  --color-surface-alt: #F7F7FB;
+  --color-border: #E2E2EA;
+
+  /* Semantic status colors - deliberately distinct from --color-accent
+     above, so a "success" badge can never be mistaken for an actionable
+     button just because they'd otherwise share a color. */
+  --status-success-bg: #EAF3DE;
+  --status-success-text: #27500A;
+  --status-warning-bg: #FAEEDA;
+  --status-warning-text: #854F0B;
+  --status-danger-bg: #FCEBEB;
+  --status-danger-text: #791F1F;
+  --status-neutral-bg: #F1EFE8;
+  --status-neutral-text: #5F5E5A;
+  /* "In progress" (pending/running) is a 5th real state this app already
+     distinguishes on the live job-status page (CLAUDE.md Section 2's
+     async job polling) - not one of the 4 semantic colors specified for
+     this pass, so rather than inventing an unrequested hue OR collapsing
+     it into --status-neutral (which would make a running job look
+     visually identical to a skipped/inactive one mid-poll), this is a
+     light tint DERIVED from --color-bg-dark - stays a structural navy,
+     not a new brand color, and stays visually distinct from every other
+     bucket including the orange accent. */
+  --status-info-bg: #E7ECF5;
+  --status-info-text: var(--color-bg-dark);
+
+  /* Legacy variable names below - kept as aliases onto the palette above
+     so the rest of this file (written before this design-system pass)
+     didn't need a wholesale rewrite. New rules should reach for the
+     --color-*/--status-* tokens directly instead of these. */
+  --bg: var(--color-surface-alt);
+  --surface: var(--color-surface);
+  --border: var(--color-border);
+  --text: #1c2430;
+  --text-muted: #5b6472;
+  /* A second, lighter muted tone - dashboard stat/operation card labels
+     specifically (2026-09-13 correction gave this its own exact value,
+     distinct from --text-muted above which every OTHER muted label in
+     the app already uses - not a replacement for it). */
+  --text-subtle: #8A8A9A;
+  --brand: var(--color-accent);
+  --brand-dark: #b85f0c;
+  /* Added 2026-09-16, landing/login palette unification: the lighter
+     hover counterpart to --brand-dark above. --brand-dark is
+     --color-accent's own channels each multiplied by 0.85 (217*0.85=
+     184=0xB8, 112*0.85=95=0x5F, 15*0.85=12=0x0C, floor-rounded) - this
+     is the same formula mirrored the other direction, each channel
+     lightened 15% of the way toward white (217+(255-217)*0.15=222.7=
+     0xDE, 112+(255-112)*0.15=133.45=0x85, 15+(255-15)*0.15=51=0x33),
+     so hover/active sit symmetrically lighter/darker around the same
+     base orange. First real use: landing.html/login.html's CTA and
+     submit buttons (style.css's "Landing + Login v2" section), which
+     previously had their own separate --as4pur-orange-hover value
+     (#F28A18, from the original design-system.md spec) before that
+     spec's navy/orange were unified onto this app's existing tokens -
+     see docs/design-system.md's "Implementation Corrections & Notes". */
+  --brand-hover: #de8533;
+  --danger-bg: var(--status-danger-bg);
+  --danger-border: #f3c9c9;
+  --danger-text: var(--status-danger-text);
+  --success: var(--status-success-text);
+  --warn: var(--status-warning-text);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Plus Jakarta Sans", -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-weight: 500;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+a { color: var(--brand); }
+a:hover { color: var(--brand-dark); }
+
+h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.5rem; }
+h2 { font-size: 1.15rem; font-weight: 700; margin-top: 2rem; }
+
+/* Sidebar layout (2026-09-13 UI/UX pass, replaces the old .topbar) - a
+   flex row of [dark navy sidebar] + [light main content]. `.app-shell`
+   wraps BOTH the logged-in (sidebar present) and logged-out (no aside,
+   base.html's else branch) cases identically - a lone flex child just
+   fills the row on its own, so no separate "guest" layout is needed. */
+.app-shell { display: flex; min-height: 100vh; }
+.app-main { flex: 1; min-width: 0; }
+
+.sidebar {
+  flex: 0 0 220px;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-dark);
+  color: rgba(255, 255, 255, 0.82);
+  padding: 1.25rem 1rem;
+}
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: #fff;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 1.05rem;
+  padding: 0 0.35rem 1.5rem;
+}
+.sidebar-nav { display: flex; flex-direction: column; gap: 0.15rem; flex: 1; }
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.72);
+  text-decoration: none;
+  font-size: 0.92rem;
+}
+.sidebar-link:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
+.sidebar-link .ti-icon { width: 1.15rem; height: 1.15rem; flex-shrink: 0; }
+/* Active state uses the ONE unified accent color, per the palette rule
+   above - never a second "active" color distinct from every button. */
+.sidebar-link.active { background: var(--color-accent); color: #fff; }
+.sidebar-link.active:hover { background: var(--color-accent); }
+
+.sidebar-logout {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.75rem 0.35rem 0;
+  margin-top: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+}
+.sidebar-logout .whoami { color: rgba(255, 255, 255, 0.6); font-size: 0.82rem; }
+.sidebar-logout .link-button { color: rgba(255, 255, 255, 0.82); align-self: flex-start; }
+.sidebar-logout .link-button:hover { color: #fff; }
+
+@media (max-width: 720px) {
+  .app-shell { flex-direction: column; min-height: 0; }
+  .sidebar { flex: none; flex-direction: row; flex-wrap: wrap; align-items: center; }
+  .sidebar-brand { padding: 0.25rem 0.5rem; flex: 1 0 100%; }
+  .sidebar-nav { flex-direction: row; flex-wrap: wrap; }
+  .sidebar-logout { flex: 1 0 100%; flex-direction: row; align-items: center; justify-content: space-between; border-top: none; margin-top: 0.25rem; }
+}
+
+.whoami { color: var(--text-muted); font-size: 0.9rem; }
+.link-button {
+  background: none;
+  border: none;
+  color: var(--brand);
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0;
+}
+.link-button:hover { text-decoration: underline; }
+
+/* Shared dropdown styling (2026-09-14 correction, exact values from
+   as4pur-login-width-and-selects.css) - one consistent look for every
+   <select> in the app, not two competing ones. Originally
+   `select.role-select`, scoped to admin/users.html's Change-role control
+   only (2026-09-13); unified here into a bare class so the same rule
+   also covers admin/invites.html's invite-role dropdown, which had no
+   dedicated styling of its own before this correction (relying on
+   browser default appearance). `select.role-select` is retired - both
+   templates now carry `class="select-input"` instead, so there is only
+   ever one rule in play for a <select>, never two silently competing. */
+.select-input {
+  border: 0.5px solid #E2E2EA;
+  border-radius: 8px;
+  padding: 8px 32px 8px 12px;
+  font-size: 13px;
+  color: #0E2148;
+  background-color: #F7F7FB;
+  width: 100%;
+  box-sizing: border-box;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%230E2148' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  cursor: pointer;
+}
+.select-input:focus {
+  outline: none;
+  border-color: #D9700F;
+  box-shadow: 0 0 0 2px rgba(217, 112, 15, 0.15);
+}
+/* admin/users.html's Change-role <select> sits inline next to the
+   "Change" button inside a bare (non-flex) <form> in a table cell -
+   `.select-input`'s own `width: 100%` would otherwise stretch it to the
+   full cell width and push the button onto its own line. Scoped here
+   (not part of the shared literal values above) so the two controls
+   stay on one line, same as before this correction. */
+.role-select-form {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.role-select-form .select-input { width: auto; }
+.btn-outline {
+  display: inline-block;
+  background: transparent;
+  border: 1px solid var(--color-accent);
+  border-radius: 6px;
+  padding: 4px 10px;
+  color: var(--color-accent);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.btn-outline:hover { background: var(--color-accent); color: #fff; }
+
+.container { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+.auth-card {
+  max-width: 360px;
+  margin: 4rem auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 2rem;
+}
+.auth-card h1 { text-align: center; margin-bottom: 0; }
+.auth-card .subtitle { text-align: center; color: var(--text-muted); margin-top: 0.25rem; margin-bottom: 1.5rem; }
+
+.stacked-form { display: flex; flex-direction: column; gap: 1rem; }
+.stacked-form label { display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.9rem; color: var(--text-muted); }
+.stacked-form input[type="text"],
+.stacked-form input[type="password"],
+.stacked-form input[type="search"] {
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 1rem;
+  color: var(--text);
+}
+.stacked-form button {
+  margin-top: 0.5rem;
+  padding: 0.6rem 1rem;
+  background: var(--brand);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  cursor: pointer;
+}
+.stacked-form button:hover { background: var(--brand-dark); }
+.stacked-form button:disabled { background: var(--border); cursor: not-allowed; }
+.hint { font-size: 0.85rem; color: var(--text-muted); margin: 0; }
+
+.alert { padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1rem; font-size: 0.9rem; }
+.alert-error { background: var(--danger-bg); border: 1px solid var(--danger-border); color: var(--danger-text); }
+.alert-warn { background: var(--status-warning-bg); border: 1px solid #f0dab3; color: var(--warn); }
+
+/* `.card-grid`/`.op-card` are SHARED with admin/home.html and
+   rtp_creation/mode.html, not dashboard-exclusive - confirmed via grep
+   (2026-09-13). A previous correction pass accidentally gave these bare
+   selectors dashboard-specific values, which leaked onto those other two
+   pages too (a real scope bug, caught and reverted here). Dashboard's own
+   operation cards now use their OWN classes (.op-grid/.op-icon/.op-title/
+   .op-meta below), scoped so they can never leak back onto these shared
+   ones again. */
+.card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 1rem; margin: 1.5rem 0; }
+.op-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem; }
+.op-card h2 { margin-top: 0; font-size: 1rem; }
+.op-card p { color: var(--text-muted); font-size: 0.9rem; }
+.op-card.disabled { opacity: 0.65; }
+.badge { display: inline-block; font-size: 0.75rem; padding: 0.2rem 0.55rem; border-radius: 999px; background: var(--border); color: var(--text-muted); }
+
+/* Wizard "<- Back" links (app/templates/partials/back_link.html) - its
+   OWN class, deliberately not `.links-row`/plain `a` above, so the
+   2026-09-13 exact styling here (color/size/weight/underline-on-hover
+   only) can't leak onto dashboard.html's unrelated `.links-row` line, or
+   onto ordinary body links elsewhere, just because they used to share a
+   class name or the global `a` color. One shared class, applied via the
+   one shared partial - every "Back"/"Wrong X? look up a different one"
+   instance across every operation updates together from here. */
+.back-link-row { margin-top: 1.5rem; }
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--color-accent);
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+}
+.back-link:hover { text-decoration: underline; }
+
+.table-scroll { overflow-x: auto; }
+.data-table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.data-table th, .data-table td { text-align: left; padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--border); font-size: 0.9rem; white-space: nowrap; }
+.data-table th { color: var(--text-muted); font-weight: 600; background: var(--bg); }
+.data-table tr:last-child td { border-bottom: none; }
+
+.status-badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.78rem; font-weight: 600; }
+/* "In progress" states use --status-info-* (a navy tint, NOT the orange
+   accent - see the --status-info-bg comment in :root) so a running job
+   never looks like a clickable button. */
+.status-pending, .status-running, .status-info { background: var(--status-info-bg); color: var(--status-info-text); }
+.status-success, .status-will_create, .status-matched, .status-verified, .status-used, .status-active { background: var(--status-success-bg); color: var(--success); }
+.status-partial_success, .status-suspect_collision, .status-mismatch, .status-ambiguous_match, .status-rule_disabled { background: var(--status-warning-bg); color: var(--warn); }
+.status-failed, .status-not_found { background: var(--danger-bg); color: var(--danger-text); }
+/* .status-failed is deliberately reused for an ENABLED target rule too
+   (existing-rule picker + Step 2 confirm screen) - enabled is the state
+   that carries real consequence here (live access, not a disabled
+   buffer), so it gets the attention-grabbing red, not a neutral tone;
+   .status-rule_disabled (above) gets the same amber "worth noting, not
+   alarming" tone as the rest of the warn-styled group. */
+.status-skipped_exists, .status-validation_excluded, .status-unmatched, .status-expired, .status-inactive { background: var(--status-neutral-bg); color: var(--status-neutral-text); }
+/* nsdebug.log per-check verdicts (Device Posture Validation upload
+   sub-feature) - reuses this same status-badge vocabulary rather than
+   inventing a parallel one. NO_RULE/APPLICABLE_NOT_OBSERVED are neutral
+   (a tenant config fact, not a problem); UNAVAILABLE/MIXED get the warn
+   tone (worth a human look, not a hard failure). */
+.status-passed { background: var(--status-success-bg); color: var(--success); }
+.status-no_rule, .status-applicable_not_observed { background: var(--status-neutral-bg); color: var(--status-neutral-text); }
+/* DERIVED: worked out from other log lines by an unverified mapping - same hue as
+   OBSERVED (.status-info) so it reads as evidence-based, but dashed so it can never
+   be mistaken for a verdict the device itself logged. */
+.status-derived { background: var(--status-info-bg); color: var(--status-info-text); border: 1px dashed currentColor; }
+.status-unavailable, .status-mixed { background: var(--status-warning-bg); color: var(--warn); }
+
+.publisher-list { display: flex; flex-direction: column; gap: 0.5rem; margin: 1rem 0; }
+/* Selector is `label.publisher-row`, not just `.publisher-row`, on
+   purpose: these rows are always <label> elements nested inside a
+   `.stacked-form` form, and `.stacked-form label` (specificity 0,1,1)
+   was silently beating a bare `.publisher-row` (0,1,0) - forcing every
+   selection card on every screen that uses this pattern (Private App
+   Import's publisher list, RTP Creation's policy-group and private-app
+   lists) into a centered COLUMN stack (checkbox on top, text below)
+   instead of the intended row layout, undetected since Phase 1. Tying
+   specificity at (0,1,1) and staying later in the cascade fixes it
+   without needing !important. color/font-size are set explicitly here
+   too, for the same reason - both were silently inherited from
+   `.stacked-form label` rather than actually intended. */
+label.publisher-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.9rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--text);
+  font-size: 1rem;
+}
+label.publisher-row:hover { background: var(--bg); }
+label.publisher-row[hidden] { display: none; }
+.publisher-name { font-weight: 600; flex: 1; }
+.publisher-id { color: var(--text-muted); font-size: 0.85rem; }
+
+/* Two-line row content (existing-rule picker, Step 2) - `label.publisher-row.rule-row`
+   reuses the exact same card/hover/click-anywhere-on-row shell as every
+   other .publisher-row picker in this app (group.html, rule_details.html);
+   only the INSIDE layout differs here - two stacked lines on the left,
+   right-aligned access-method/user-count on the right - so this is scoped
+   to .rule-row-line1 .publisher-name, not the base .publisher-name rule
+   other pickers still rely on. */
+.rule-row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.2rem; }
+.rule-row-line1 { display: flex; align-items: center; gap: 0.5rem; }
+.rule-row-line1 .publisher-name { flex: none; font-size: 15px; }
+.rule-row-line2 { color: var(--text-muted); font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rule-row-meta { flex-shrink: 0; text-align: right; display: flex; flex-direction: column; gap: 0.15rem; font-size: 0.85rem; color: var(--text-muted); }
+
+/* Live client-side filter box above a .publisher-list (app/static/js/list-filter.js) */
+.list-filter { margin-bottom: 0.5rem; }
+.list-filter input[type="search"] { display: block; box-sizing: border-box; width: 100%; padding: 0.6rem 0.9rem; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; color: var(--text); }
+.list-filter-empty { color: var(--text-muted); font-size: 0.9rem; padding: 0.6rem 0.9rem; }
+
+/* "Select all" master checkbox for a checkbox-based .publisher-list
+   (app/static/js/list-filter.js, 2026-09-13). `label.select-all-row`,
+   not bare `.select-all-row`, for the same specificity reason as
+   `label.publisher-row`/`label.review-gate` above: this label also sits
+   inside a `.stacked-form`, and `.stacked-form label` (0,1,1) would
+   otherwise beat a bare class selector (0,1,0) and force it into a
+   centered column stack instead of a row. */
+label.select-all-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.step-indicator { color: var(--text-muted); font-size: 0.9rem; margin-top: -0.25rem; }
+.format-explainer { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.25rem; margin: 1rem 0; }
+.format-explainer h2 { margin-top: 0; font-size: 1rem; }
+.format-explainer code { background: var(--bg); padding: 0.1rem 0.35rem; border-radius: 4px; font-size: 0.85em; }
+
+.summary-counts { display: flex; gap: 0.6rem; margin: 1rem 0; flex-wrap: wrap; }
+.count-pill { padding: 0.35rem 0.8rem; border-radius: 999px; font-size: 0.85rem; font-weight: 600; }
+.count-create { background: var(--status-success-bg); color: var(--success); }
+.count-skip { background: var(--status-neutral-bg); color: var(--status-neutral-text); }
+.count-exclude { background: var(--danger-bg); color: var(--danger-text); }
+.count-warn { background: var(--status-warning-bg); color: var(--warn); }
+
+.warnings-block { background: var(--status-warning-bg); border: 1px solid #f0dab3; border-radius: 8px; padding: 0.75rem 1rem; margin: 1rem 0; color: var(--warn); }
+.warnings-block ul { margin: 0.5rem 0 0; }
+
+/* nsdebug.log per-check evidence lines (Device Posture Validation) - each
+   list item is a raw log line paired with its own status badge, so
+   "white-space: nowrap" from .data-table td (this list always lives
+   inside one) doesn't need overriding for the <code> text to wrap. */
+.evidence-list { list-style: none; margin: 0; padding: 0; white-space: normal; }
+.evidence-list li { margin: 0.3rem 0; }
+.evidence-list code { background: var(--bg); padding: 0.1rem 0.35rem; border-radius: 4px; font-size: 0.85em; white-space: normal; }
+
+/* Status filter chips above the nsdebug.log "Per-check results" table
+   (app/static/js/nsdebug-filter.js) - plain buttons wearing the existing
+   .status-badge color vocabulary, so FAILED/MIXED/etc. look identical to
+   the badges they filter, plus a border and an "active" ring so the
+   current selection is obvious at a glance. */
+.filter-chip-row { display: flex; gap: 0.5rem; margin: 1rem 0; flex-wrap: wrap; }
+.filter-chip { border: 1px solid var(--border); cursor: pointer; font-family: inherit; }
+.filter-chip.active { outline: 2px solid var(--color-accent); outline-offset: 1px; }
+.filter-chip[data-status-filter="ALL"] { background: var(--surface); color: var(--text); }
+
+/* "Show N more lines" toggle (evidence list capped to first 3 + last 1 -
+   app/operations/device_posture/service.py's `_EVIDENCE_CAP_HEAD`/`_TAIL`).
+   The capped lines themselves stay in the DOM the whole time ([hidden]
+   only, never removed) so there's no server round-trip to reveal them. */
+.evidence-hidden-toggle { background: none; border: none; padding: 0; color: var(--color-accent); font-size: 0.85rem; cursor: pointer; text-decoration: underline; }
+
+.job-meta { display: grid; grid-template-columns: max-content 1fr; gap: 0.25rem 1rem; margin: 1rem 0 1.5rem; }
+.job-meta dt { color: var(--text-muted); font-size: 0.85rem; }
+.job-meta dd { margin: 0; }
+
+progress { width: 100%; height: 0.9rem; }
+
+/* `label.review-gate`, not bare `.review-gate`, for the same reason as
+   `label.publisher-row`: every review-gate checkbox sits inside a
+   `.stacked-form` form, and `.stacked-form label` (specificity 0,1,1)
+   was silently beating `.review-gate` alone (0,1,0) - forcing every
+   "I have reviewed the results above" gate on every operation's review
+   page into a centered COLUMN stack (checkbox on its own line, text
+   below) instead of a row, undetected since Phase 1 (found while
+   investigating Operation 3's acknowledgment gate, then confirmed to be
+   the same pre-existing bug here too). `align-items: center` (was
+   `flex-start`) is a deliberate change, not just the specificity fix:
+   on a short one-line label the two look identical, so this has no
+   visible effect on the existing short "I have reviewed" gates, but it
+   correctly centers a longer, multi-line attestation (e.g. Operation 3's
+   acknowledgment) against its full wrapped height instead of stacking it
+   - this is why the acknowledgment reuses this class rather than needing
+   its own. */
+label.review-gate { flex-direction: row; margin: 1.5rem 0; display: flex; align-items: center; gap: 0.5rem; }
+
+/* Secondary-path disclosure (e.g. "Enter a rule ID manually" under the
+   rule picker) - no specificity concerns like label.publisher-row/
+   label.review-gate above, since <summary> is never a <label>. */
+details { margin-top: 1.5rem; }
+details summary { cursor: pointer; color: var(--brand); font-weight: 600; }
+details .stacked-form { margin-top: 0.75rem; }
+
+/* Generic inline Tabler icon (app/templates/partials/icons.html) -
+   sized via `font-size`-independent fixed dimensions so it never
+   distorts inside a flex row; color always comes from the ancestor's
+   `color` (stroke="currentColor" in the SVG markup itself). */
+.ti-icon { width: 1.2rem; height: 1.2rem; flex-shrink: 0; }
+
+/* The AS4PUR brand mark is a real provided asset
+   (app/static/icons/as4pur-mark.svg), referenced directly via <img
+   width=".." height="..">, not CSS-sized - no rules needed here. An
+   earlier hand-built SVG-macro version of this mark (with its own
+   .icon-mark* classes) was removed in the 2026-09-13 correction pass;
+   its indigo (--color-accent-trace) usage went with it - see that
+   variable's own comment above for where indigo is reserved now. */
+
+/* ============================================================
+   Landing + Login v2 (docs/design-system.md, 2026-09-16 rebuild)
+   ============================================================
+   Full rebuild superseding every prior login-only iteration above
+   (the 2026-09-13/09-14 `.auth-*` rules are gone, not left as dead
+   code) - the operator supplied a complete, literal design spec
+   covering both a new public landing page and a rebuilt login page
+   sharing one "brand panel". See docs/design-system.md for the full
+   spec and the "Implementation Corrections & Notes" section for every
+   deliberate deviation from its literal text (tagline wording, the
+   Section 8 copy fixes, the two added sections, the Inter fallback
+   choice, the known cross-page palette mismatch with the rest of the
+   app, and the logo/illustration asset decisions).
+
+   Deliberately a SEPARATE token set (--as4pur-*), scoped under
+   .brand-shell so it can never leak onto the sidebar/dashboard/
+   operation wizards, which keep using the app's existing --color-*
+   tokens (2026-09-13 UI/UX pass) and self-hosted Plus Jakarta Sans
+   untouched - the two systems coexist rather than one silently
+   overwriting the other. */
+main.brand-shell-page { max-width: none; padding: 0; margin: 0; }
+
+.brand-shell {
+  /* 2026-09-16 palette unification: --as4pur-navy/--as4pur-orange* are no
+     longer their own hardcoded hex values (#102A56 / #E97800 / #F28A18 /
+     #D96D00, the original design-system.md spec's literal numbers) -
+     they now alias the app's real, existing tokens directly, so landing/
+     login structurally CANNOT drift from the rest of the app's navy/
+     orange again (a future edit to --color-bg-dark or --color-accent
+     updates these pages too, automatically). This was a deliberate
+     operator correction - the two systems were flagged as a known open
+     seam when first built, then explicitly closed rather than left as
+     two coexisting palettes. --as4pur-navy-light (#1B3A70, the
+     decorative corner-line color, Section 5) and every non-navy/orange
+     token below (surface/border/text-muted/error) are UNCHANGED - the
+     operator's correction was scoped to navy structural color + orange
+     accent only, not a full palette merge. */
+  --as4pur-navy: var(--color-bg-dark);
+  --as4pur-navy-dark: #0D2348;
+  --as4pur-navy-light: #1B3A70;
+  --as4pur-orange: var(--color-accent);
+  --as4pur-orange-hover: var(--brand-hover);
+  --as4pur-orange-active: var(--brand-dark);
+  --as4pur-white: #FFFFFF;
+  --as4pur-surface: #F8F9FC;
+  --as4pur-text: var(--color-bg-dark);
+  --as4pur-text-secondary: #647A9E;
+  --as4pur-text-muted: #8290A8;
+  --as4pur-border: #D9E0EC;
+  --as4pur-border-light: #E8ECF3;
+  --as4pur-error: #C62828;
+  --brand-width: 36%;
+  --content-width: 64%;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  /* Font-family override REMOVED (was "Inter", -apple-system,
+     BlinkMacSystemFont, "Segoe UI", sans-serif - 2026-09-16 correction).
+     No declaration needed at all: body {} (line ~119 above) already
+     sets the app's real self-hosted Plus Jakarta Sans stack, and
+     font-family inherits - .brand-shell simply lets that inherited
+     value through instead of shadowing it with a second font system. */
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+  background: var(--as4pur-white);
+  color: var(--as4pur-text);
+}
+
+/* ---------- Shared brand panel (Sections 4-5, partials/brand_panel.html) ---------- */
+.brand-panel {
+  width: var(--brand-width);
+  flex-shrink: 0;
+  background: var(--as4pur-navy);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+.brand-panel-deco {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  stroke: var(--as4pur-navy-light);
+  stroke-width: 1;
+  fill: none;
+  opacity: 0.65;
+  pointer-events: none;
+}
+.brand-panel-inner {
+  width: 100%;
+  max-width: 360px;
+  padding: 32px;
+  text-align: center;
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
+}
+/* Icon+wordmark "go home" link (2026-09-17) - `display: block` keeps
+   the <img>/<div class="brand-wordmark"> stacking exactly as it was as
+   direct children of .brand-panel-inner before this link wrapped them
+   (an inline <a> would otherwise sit the block-level wordmark <div>
+   awkwardly). text-decoration/color set explicitly, defensively, rather
+   than relying only on .brand-wordmark's own white winning on
+   specificity against the app-wide bare `a { color: var(--brand) }`. */
+.brand-mark-link { display: block; text-decoration: none; color: inherit; }
+.brand-logo { margin-bottom: 20px; }
+.brand-wordmark {
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--as4pur-white);
+  letter-spacing: -0.5px;
+  margin-bottom: 16px;
+}
+.brand-tagline {
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.6;
+  color: #D5DEED;
+  max-width: 300px;
+  margin: 0 auto;
+}
+
+/* ---------- Content panel shared shell ---------- */
+.content-panel {
+  width: var(--content-width);
+  background: var(--as4pur-white);
+  box-sizing: border-box;
+}
+
+/* ============================================================
+   Landing page (Sections 6-11, templates/landing.html)
+   ============================================================ */
+.landing-panel { position: relative; min-height: 100vh; padding: 48px 56px; box-sizing: border-box; }
+.landing-content { max-width: 900px; }
+
+.landing-header {
+  position: absolute;
+  top: 32px;
+  right: 48px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--as4pur-text);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+/* Language switcher (2026-09-16, rebuilt from a native <select> into a
+   custom button+listbox the same day - a <select> can't put an image
+   inside its <option>s, and flag emoji specifically render as literal
+   "GB"/"ID" text on Windows/Chromium, not actual flags). No existing
+   floating-panel/menu component was found anywhere else in this app to
+   reuse structurally (only plain <details> disclosures and native
+   <select>s exist) - this is a small new one, but the closed-state
+   TRIGGER reuses .select-input's border/radius/colors/chevron directly
+   (same class, just on a <button> instead of a <select>) rather than
+   inventing a new look for it. .select-input's own `width: 100%` would
+   otherwise stretch to fill this absolutely-positioned header's
+   ambiguous auto width - overridden here the same way
+   .role-select-form scopes it for the admin users table. */
+.landing-header .select-input { width: auto; min-width: 130px; }
+
+.lang-dropdown { position: relative; }
+.lang-dropdown-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  cursor: pointer;
+}
+.lang-flag {
+  width: 18px;
+  height: 13px;
+  flex-shrink: 0;
+  border-radius: 2px;
+  display: block;
+  /* Flags are rectangular photos of a real object, not glyphs -
+     object-fit avoids any visible stretch distortion at this fixed
+     18x13 box regardless of a given flag's own native aspect ratio
+     (flag-icons' own SVGs are all 640x480 = 4:3, so this is mostly
+     belt-and-braces). */
+  object-fit: cover;
+}
+.lang-dropdown-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 100%;
+  width: max-content;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--as4pur-white);
+  border: 0.5px solid var(--as4pur-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 16px rgba(14, 33, 72, 0.12);
+  z-index: 20;
+}
+.lang-dropdown-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--as4pur-text);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.lang-dropdown-option:hover,
+.lang-dropdown-option:focus {
+  background: var(--as4pur-surface);
+  outline: none;
+}
+.lang-dropdown-option[aria-selected="true"] { font-weight: 700; }
+
+.landing-eyebrow {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: var(--as4pur-text-secondary);
+  text-transform: uppercase;
+  margin: 0 0 14px;
+}
+.landing-hero-heading {
+  font-size: 44px;
+  font-weight: 700;
+  line-height: 1.12;
+  letter-spacing: -1.2px;
+  color: var(--as4pur-text);
+  margin: 0 0 20px;
+}
+.landing-description {
+  font-size: 16px;
+  line-height: 1.65;
+  font-weight: 400;
+  color: var(--as4pur-text-secondary);
+  max-width: 520px;
+  margin: 0 0 40px;
+}
+
+.landing-hero-row { display: flex; align-items: center; gap: 32px; }
+.landing-hero-text { flex: 1; min-width: 0; }
+.landing-illustration { width: 360px; max-width: 40%; opacity: 0.9; flex-shrink: 0; }
+.landing-illustration img { width: 100%; height: auto; display: block; }
+
+.landing-features { margin: 0 0 40px; }
+.landing-feature { display: flex; gap: 16px; margin-bottom: 20px; }
+.landing-feature:last-child { margin-bottom: 0; }
+.landing-feature-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #FFF3E6;
+  color: var(--as4pur-orange);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.landing-feature-icon .ti-icon { width: 22px; height: 22px; }
+.landing-feature-title { font-size: 15px; font-weight: 600; color: var(--as4pur-text); margin: 0 0 4px; }
+.landing-feature-desc { font-size: 13px; line-height: 1.5; color: var(--as4pur-text-secondary); margin: 0; }
+
+.landing-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 48px;
+  width: 352px;
+  max-width: 100%;
+  border-radius: var(--radius-md);
+  background: var(--as4pur-orange);
+  color: var(--as4pur-white);
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  transition: background-color 150ms ease;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+.landing-cta:hover { background: var(--as4pur-orange-hover); }
+.landing-cta:active { background: var(--as4pur-orange-active); }
+
+/* "The Challenge" and "Security by Design" (new sections, inserted after
+   Section 10, before Section 11 - see docs/design-system.md's
+   Implementation Corrections #3). Reuse .landing-eyebrow above and the
+   .landing-feature* pattern from Section 8 - no new visual language. */
+.landing-section { margin-top: 56px; }
+.landing-section-h2 { font-size: 24px; font-weight: 700; line-height: 1.25; color: var(--as4pur-text); margin: 0 0 20px; }
+.landing-challenge-list {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--as4pur-text-secondary);
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.6;
+}
+.landing-challenge-list li { margin-bottom: 10px; }
+.landing-challenge-list li:last-child { margin-bottom: 0; }
+
+.landing-footer {
+  margin-top: 56px;
+  border-top: 1px solid var(--as4pur-border-light);
+  padding-top: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--as4pur-text-muted);
+}
+.landing-footer strong { color: var(--as4pur-text); font-weight: 700; }
+
+/* ============================================================
+   Login page (Sections 12-20, templates/login.html)
+   ============================================================ */
+.login-panel { position: relative; display: flex; align-items: center; justify-content: center; padding: 48px; box-sizing: border-box; min-height: 100vh; }
+.login-container { width: 100%; max-width: 560px; padding: 32px; box-sizing: border-box; }
+/* Corner "Back to AS4PUR" link (2026-09-17) - absolutely positioned
+   against .login-panel itself (now position: relative), deliberately
+   OUTSIDE .login-container's centered flex flow so it can never shift
+   the form's own vertical centering - reuses .back-link exactly
+   (style.css, wizard steps) for color/arrow/hover, unrestyled; only
+   this class handles placement. */
+.login-back-link { position: absolute; top: 24px; left: 24px; }
+
+.login-heading h1 { font-size: 32px; font-weight: 700; line-height: 1.2; letter-spacing: -0.6px; color: var(--as4pur-text); margin: 0; }
+.login-heading p { margin: 8px 0 0; font-size: 15px; color: var(--as4pur-text-secondary); }
+
+.login-form { margin-top: 40px; }
+.login-field { margin-bottom: 24px; }
+.login-field-password { margin-bottom: 32px; }
+.login-label { display: block; font-size: 13px; font-weight: 600; color: var(--as4pur-text); margin-bottom: 8px; }
+
+.login-input-wrap { position: relative; }
+.login-input-icon {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--as4pur-text-muted);
+  display: flex;
+  pointer-events: none;
+}
+.login-input-icon .ti-icon { width: 18px; height: 18px; }
+.login-input {
+  height: 52px;
+  width: 100%;
+  background: var(--as4pur-surface);
+  border: 1px solid var(--as4pur-border);
+  border-radius: var(--radius-md);
+  padding: 0 16px 0 44px;
+  font-size: 14px;
+  color: var(--as4pur-text);
+  box-sizing: border-box;
+  font-family: inherit;
+}
+.login-field-password .login-input { padding-right: 44px; }
+.login-input::placeholder { color: var(--as4pur-text-muted); }
+.login-input:focus {
+  outline: none;
+  border-color: var(--as4pur-orange);
+  /* rgba(217, 112, 15, ...) = --color-accent (#D9700F) in RGB form -
+     box-shadow can't reference a CSS custom property inside rgba()'s
+     color-plus-alpha syntax directly, so the channels are spelled out;
+     was rgba(233, 120, 0, ...) = #E97800 before the 2026-09-16 palette
+     unification (see .brand-shell's own comment above). */
+  box-shadow: 0 0 0 3px rgba(217, 112, 15, 0.12);
+}
+.login-password-toggle {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--as4pur-text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.login-password-toggle .ti-icon { width: 20px; height: 20px; }
+
+.login-error { font-size: 13px; color: var(--as4pur-error); margin: 0 0 24px; }
+
+.login-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 52px;
+  width: 100%;
+  border-radius: var(--radius-md);
+  background: var(--as4pur-orange);
+  color: var(--as4pur-white);
+  font-size: 15px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: background-color 150ms ease;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+.login-submit:hover { background: var(--as4pur-orange-hover); }
+.login-submit:active { background: var(--as4pur-orange-active); }
+.login-submit:disabled { cursor: default; }
+/* Loading state (Section 20) - toggled by static/js/login.js on submit,
+   never a full-page change, just this button's own content/state. */
+.login-spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #fff;
+  display: inline-block;
+  animation: login-spin 0.6s linear infinite;
+}
+@keyframes login-spin { to { transform: rotate(360deg); } }
+
+/* ============================================================
+   Responsive (Section 21) - desktop 36/64 (default above), tablet
+   40/60, mobile stacked with the brand panel becoming a compact header.
+   ============================================================ */
+@media (max-width: 1023px) {
+  .brand-panel { width: 40%; }
+  .content-panel { width: 60%; }
+}
+@media (max-width: 767px) {
+  .brand-shell { flex-direction: column; min-height: auto; }
+  .brand-panel, .content-panel { width: 100%; }
+  .brand-panel { padding: 20px 16px; }
+  .brand-panel-inner { max-width: none; padding: 0; }
+  .brand-tagline { display: none; }
+  .brand-logo { width: 40px; height: 40px; margin-bottom: 8px; }
+  .brand-wordmark { font-size: 20px; margin-bottom: 0; }
+
+  .landing-panel { padding: 32px 20px; min-height: auto; }
+  .landing-hero-row { flex-direction: column; align-items: flex-start; }
+  .landing-illustration { width: 100%; max-width: 220px; margin-top: 24px; }
+  .landing-header { position: static; justify-content: flex-end; margin-bottom: 24px; }
+
+  .login-panel { padding: 24px 20px; min-height: auto; }
+  .login-container { padding: 0; }
+}
+
+/* Dashboard (2026-09-13 correction - complete replacement supplied as
+   as4pur-login-dashboard.css, values transcribed verbatim). A dark
+   banner (same --color-bg-dark as the sidebar, zero gap/border between
+   them - "connected to the sidebar") over a light body holding the stat
+   cards and operation cards. `main.dashboard-shell` (dashboard.html's
+   {% block main_class %}) still drops the normal .container max-width/
+   padding, unchanged - the supplied file doesn't address that ancestor.
+
+   The dashboard's own operation-card container uses NEW class names
+   (.op-grid/.op-icon/.op-title/.op-meta) rather than reusing the
+   `.card-grid`/`.op-card` classes shared with admin/home.html and
+   rtp_creation/mode.html - deliberately, so the .op-card overrides
+   below (no border, transparent-by-default left accent, 14px padding)
+   are scoped under `.op-grid` and can never leak onto those other two
+   pages the way a previous pass accidentally did (see the `.card-grid`/
+   `.op-card` comment earlier in this file for that history). */
+main.dashboard-shell { max-width: none; padding: 0; }
+.dashboard-banner { background: #0E2148; padding: 18px 22px; }
+.dashboard-banner h1 { font-weight: 700; font-size: 16px; color: #fff; margin: 0 0 3px; }
+.dashboard-banner p { font-size: 12px; color: rgba(255, 255, 255, 0.55); margin: 0; }
+.dashboard-body { background: #F7F7FB; padding: 18px 22px; }
+
+.stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px; }
+.stat-card { background: #fff; border-radius: 10px; padding: 12px; }
+/* `display:flex; gap:5px` here is a hook for the still-unbuilt
+   pending-invites status dot (CLAUDE.md's one reserved indigo use) - the
+   flex row itself is harmless with no dot present, just this label's
+   text alone; the dot's own markup/size hasn't been given exact values
+   yet, so it isn't invented here (see the --color-accent-trace comment
+   in :root). */
+.stat-card .stat-label { font-size: 11px; color: #8A8A9A; margin-bottom: 5px; display: flex; align-items: center; gap: 5px; }
+.stat-card .stat-value { font-weight: 700; font-size: 18px; color: #0E2148; }
+
+.op-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.op-grid .op-card { background: #fff; border-radius: 10px; padding: 14px; border-left: 3px solid transparent; }
+.op-grid .op-card--recent-activity { border-left-color: #D9700F; }
+/* `font-size: 16px` alone is the literal supplied value, but has no
+   effect on an inline SVG's rendered size (unlike a webfont-icon glyph,
+   where font-size IS the icon size) - this app's icons are real <svg>
+   elements (app/templates/partials/icons.html), sized via width/height,
+   not em-relative to their container's font-size. The explicit
+   `.ti-icon` width/height rule directly below is what actually produces
+   the 16px glyph; `font-size` is kept for fidelity to the supplied file
+   and because it still correctly sizes the *color* inheritance context. */
+.op-grid .op-icon { font-size: 16px; color: var(--color-accent); display: block; margin-bottom: 6px; }
+.op-grid .op-icon .ti-icon { width: 16px; height: 16px; }
+.op-grid .op-title { font-weight: 700; font-size: 13px; color: #0E2148; margin: 0 0 3px; }
+.op-grid .op-meta { font-size: 11px; color: #8A8A9A; }
+
+.dashboard-links { margin-top: 14px; font-size: 12px; }
+
+@media (max-width: 720px) {
+  .stat-grid, .op-grid { grid-template-columns: 1fr; }
+}
