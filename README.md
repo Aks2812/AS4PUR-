@@ -1,8 +1,40 @@
 # AS4PUR
 
-AS4PUR is an internal web portal that wraps five Netskope administration operations in a browser UI: Private App Import, RTP (NPA policy) Creation, Local Group / User Import, Device Posture Validation and Data Export. It adds a real login, review gates before every write, and an audit trail. It is a FastAPI application with server-rendered Jinja2 pages and a SQLite database.
+AS4PUR (Automation System for Private App Definition, User Provision, and RTP Creation) is an internal web application for engineers who administer Netskope tenants. It turns administration tasks that are otherwise done with scripts or by hand in the Netskope console - bulk-creating private apps and access policies, provisioning users, checking device posture, exporting tenant data - into guided steps in a browser: you review what will change before anything is written, and every run is recorded in an audit history. It is a FastAPI application with server-rendered Jinja2 pages and a SQLite database.
 
 It is built for a private network (LAN, VPN or zero-trust access) behind a TLS-terminating reverse proxy. **Do not expose it to the internet.** Netskope tenant names and API tokens are typed in by the operator for each run and are never stored.
+
+## What it does
+
+Five operations, each started from the dashboard:
+
+- **Private app definition (Private App Import)** - upload an Excel list of apps, choose the publishers, review a dry run that skips apps whose name or destination and port already exist, then create the rest in paced batches and check afterwards that they exist in the tenant.
+- **RTP creation** - resolve a list of users from an HR or directory export to their real Netskope email addresses, then create a Private Access policy rule for them (always created disabled, then re-read to confirm the stored users); users can also be added to an existing rule.
+- **User provision (Local Group / User Import)** - create SCIM users, and optionally a group, from a CSV or Excel file in a tenant that has no Entra/SCIM sync of its own, with a validation step and a review before anything is written.
+- **Device Posture Validation** - read-only: look up a user's devices and their posture status together with the tenant's device classification rules, or upload a device's `nsdebug.log` to see which posture checks it reports.
+- **Data Export** - read-only: export private apps (including protocols and ports) and users and groups to CSV.
+
+Around the operations: a real login (accounts are created by an administrator, there is no self-registration), an audit history of every run with a CSV export, administrator pages for invites and user management, and a built-in Help page.
+
+## Screenshots
+
+Taken from a throwaway instance with an empty database and a demo account.
+
+![AS4PUR landing page: a dark navy brand panel on the left; on the right the heading "Secure Access. Automated.", three feature summaries, an illustration and a "Go to Login" button](docs/images/landing.png)
+
+*The public landing page, shown to visitors who are not signed in.*
+
+![AS4PUR sign-in page with username and password fields and a "Sign in" button](docs/images/login.png)
+
+*The sign-in page.*
+
+![AS4PUR dashboard after signing in: sidebar navigation, four status counters and one card for each of the five operations](docs/images/dashboard.png)
+
+*The dashboard: status counters and one card for each operation.*
+
+## Disclaimer
+
+AS4PUR is an unofficial tool. It is not affiliated with, endorsed by or supported by Netskope. Netskope is a trademark of its owner.
 
 **Verification legend.** Commands in this file are tagged on their first line:
 
@@ -256,5 +288,5 @@ alembic/            database migrations (alembic.ini at the root)
 reference_scripts/  proven CLI scripts; parts are imported by the application at runtime, so keep this folder
 scripts/            create_user.py (creates the first administrator)
 deploy/             example systemd unit, nginx configuration, deployment notes
-docs/               design notes for the UI
+docs/               design notes for the UI; docs/images/ holds the README screenshots
 ```
