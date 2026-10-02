@@ -27,6 +27,7 @@ from .operations.device_posture import router as device_posture_router
 from .operations.local_group_import import router as local_group_import_router
 from .operations.private_app_import import router as private_app_import_router
 from .operations.rtp_creation import router as rtp_creation_router
+from .operations.user_lookup import router as user_lookup_router
 from .templating import templates
 from .timeutil import utcnow
 from .worker_guard import WorkerConfigError, ensure_single_worker
@@ -62,6 +63,7 @@ def create_app() -> FastAPI:
     app.include_router(local_group_import_router)
     app.include_router(device_posture_router)
     app.include_router(data_export_router)
+    app.include_router(user_lookup_router)
 
     @app.exception_handler(NotAuthenticated)
     async def _not_authenticated(request: Request, exc: NotAuthenticated):

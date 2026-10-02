@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}User Lookup — {{ app_name }}{% endblock %}
+{% block content %}
+<h1>User Lookup</h1>
+<p class="step-indicator">Step 2 of 2 &middot; Email, UPN or hostname &middot; Tenant: {{ tenant }}</p>
+
+{% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+
+<form method="post" action="{{ action }}" class="stacked-form" autocomplete="off">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <label>Email, UPN or hostname
+    <input type="search" name="q" value="{{ query_text }}" required maxlength="320" autofocus
+           autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="name@company.com or LAPTOP-ABC123">
+  </label>
+  <p class="hint">Email and UPN are both accepted; one is resolved to the other through user management.</p>
+  <button type="submit">Look up</button>
+</form>
+
+{% if q and report %}
+<div class="format-explainer">
+  <h2>{% if q.kind == 'hostname' %}Hostname{% else %}Email / UPN{% endif %}: <code>{{ q.value }}</code></h2>
+  {% for n in report.notes %}<div class="alert alert-warn">{{ n }}</div>{% endfor %}
+  {% if not report.people %}<p class="hint">Nothing to show.</p>{% endif %}
+</div>
+
+{% for p in report.people %}
+<div class="format-explainer">
+  <h2>{% if p.users %}{{ p.users[0].name or p.users[0].id }}{% else %}<code>{{ p.typed }}</code>{% endif %}</h2>
+  {% for n in p.notes %}<div class="alert alert-warn">{{ n }}</div>{% endfor %}
+
+  <dl class="job-meta">
+    <dt>Email</dt><dd>{% for e in p.identity.emails|sort %}<code>{{ e }}</code>{% if not loop.last %}<br>{% endif %}{% endfor %}</dd>
+    {% for u in p.users %}{% for a in u.accounts %}
+    <dt>UPN</dt><dd><code>{{ a.upn }}</code>
+      {% if a.active is sameas false %}<span class="status-badge status-inactive">disabled</span>{% elif a.active %}<span class="status-badge status-active">active</span>{% endif %}
+      {% if a.provisioner %}<span class="badge">{{ a.provisioner }}</span>{% endif %}
+      {% if a.ou %}<br><span class="hint">{{ a.ou }}</span>{% endif %}</dd>
+    {% endfor %}{% endfor %}
+    <dt>Groups</dt><dd>{% if p.groups %}{% for g in p.groups %}<span class="badge">{{ g }}</span> {% endfor %}{% else %}<span class="hint">none reported</span>{% endif %}</dd>
+  </dl>
+
+  <h3>Devices</h3>
+  {% if not p.devices %}<p class="hint">No device reported in the last {{ p.window_days }} days.</p>{% endif %}
+  {% for dv in p.devices %}{% set d = dv.device %}
+  <div class="format-explainer"{% if d.uninstalled %} style="opacity:.65"{% endif %}>
+    <h4>{{ d.hostname or 'unknown host' }}
+      {% if dv.searched %}<span class="status-badge status-info">searched</span>{% endif %}</h4>
+    <p class="hint">{{ d.model }}{% if d.model and d.os %} &middot; {% endif %}{{ d.os }} {{ d.os_version }}</p>
+    <p>
+      {% if d.classification.lower() == 'managed' %}<span class="status-badge status-success">Managed</span>
+      {% elif d.classification.lower() == 'unmanaged' %}<span class="status-badge status-partial_success">Unmanaged</span>
+      {% else %}<span class="badge">{{ d.classification or 'Unknown' }}</span>{% endif %}
+      {% if d.custom_id and d.custom_id != '-1' %}<span class="badge">{{ d.custom_name or ('custom #' ~ d.custom_id) }}</span>{% endif %}
+      {% if d.uninstalled %}<span class="status-badge status-failed">client uninstalled</span>{% endif %}
+      {% if dv.stale and not d.uninstalled %}<span class="status-badge status-partial_success">stale</span>{% endif %}
+      {% if d.npa_status %}<span class="badge">NPA {{ d.npa_status }}</span>{% endif %}
+    </p>
+    <p class="hint">Last event: {{ d.last_event or 'unknown' }}, {{ age(d.age_seconds(now)) }} ({{ fmt_ts(d.last_event_ts) }})</p>
+  </div>
+  {% endfor %}
+</div>
+
+{% for key, res in p.policy.items() %}
+<div class="format-explainer">
+  <h3>Policies{% if res.device %} for {{ res.device.hostname }}{% else %} (no live device){% endif %}</h3>
+
+  {% for app, c in res.conflicts.items() %}
+  <div class="alert alert-warn"><strong>{{ app }}</strong>: allowed by {{ c.grant|join(', ') }} but blocked by {{ c.block|join(', ') }}.
+    Rule order is not available from the API, so check which one comes first in the console.</div>
+  {% endfor %}
+
+  <h4>Apply now ({{ res.applies|length }})</h4>
+  {% for m in res.applies %}{% set r = mv(m) %}
+  <div class="format-explainer">
+    <strong>{{ r.name }}</strong>
+    {% if r.action == 'block' %}<span class="status-badge status-failed">block</span>{% elif r.action == 'allow' %}<span class="status-badge status-success">allow</span>{% else %}<span class="status-badge status-partial_success">{{ r.action|replace('_', ' ') }}</span>{% endif %}
+    {% if r.note %}<p>{{ r.note }}</p>{% endif %}
+    <p class="hint">for {% if 'everyone' in r.via %}everyone{% else %}{{ r.via|join(', ') }}{% endif %}{% if r.wants %} &middot; when {{ r.wants }}{% endif %}</p>
+    <p>{% for a in r.apps %}<code>{{ a }}</code> {% endfor %}{% for t in r.tags %}<code>tag: {{ t }}</code> {% endfor %}</p>
+  </div>
+  {% else %}<p class="hint">No enabled NPA rule applies.</p>{% endfor %}
+
+  {% if res.blocked_by_device %}
+  <h4>Would apply if the device matched ({{ res.blocked_by_device|length }})</h4>
+  {% for m in res.blocked_by_device %}{% set r = mv(m) %}
+  <div class="format-explainer" style="opacity:.75">
+    <strong>{{ r.name }}</strong> <span class="badge">{{ r.action|replace('_', ' ') }}</span>
+    <p class="hint">needs: {{ r.wants }} &middot; this device fails: {{ r.failed|join(', ') }}</p>
+    <p>{% for a in r.apps %}<code>{{ a }}</code> {% endfor %}</p>
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  {% if res.device_unknown %}
+  <h4>Depends on a device ({{ res.device_unknown|length }})</h4>
+  {% for m in res.device_unknown %}{% set r = mv(m) %}
+  <p><strong>{{ r.name }}</strong> <span class="hint">needs: {{ r.wants }}</span></p>
+  {% endfor %}
+  {% endif %}
+</div>
+{% endfor %}
+{% endfor %}
+
+<details class="format-explainer">
+  <summary>How rules are evaluated</summary>
+  <ul class="hint">
+    <li>A rule with no user, group or OU condition applies to everyone.</li>
+    <li>Users are matched on email (case ignored). Group matching is untested on this tenant.</li>
+    <li>Device classification (Managed/Unmanaged) and custom classifications are treated as one choice: either matches.</li>
+    <li>Device data is the last state the client reported and can be old; check the last-seen time.</li>
+    <li>The API gives no rule order, so conflicts between allow and block are flagged, not resolved.</li>
+  </ul>
+</details>
+{% endif %}
+
+{% include "partials/back_link.html" %}
+{% endblock %}

@@ -28,6 +28,8 @@
     {% set current_op = {"label": "RTP creation", "icon": "lock", "href": "/operations/rtp-creation"} %}
   {% elif current_path.startswith("/operations/device-posture") %}
     {% set current_op = {"label": "Device Posture Validation", "icon": "device-laptop", "href": "/operations/device-posture"} %}
+  {% elif current_path.startswith("/operations/user-lookup") %}
+    {% set current_op = {"label": "User Lookup", "icon": "user", "href": "/operations/user-lookup"} %}
   {% elif current_path.startswith("/operations/data-export") %}
     {% set current_op = {"label": "Data Export", "icon": "download", "href": "/operations/data-export"} %}
   {% endif %}
