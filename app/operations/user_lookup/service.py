@@ -10,6 +10,7 @@ Every field name used here was seen in a real tenant response (see the design do
 from __future__ import annotations
 
 import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 
 import requests
@@ -296,6 +297,137 @@ def run_lookup(client, q: Query, cache: dict, now: int | None = None) -> Report:
     if report.people:
         report.class_names = fetch_class_names(client, cache)
     return report
+
+
+# ---- type-ahead suggestions --------------------------------------------------------
+SUGGEST_LIMIT = 8               # suggestions shown, and rows asked per user-management query
+SUGGEST_HOST_ROWS = 100         # clientstatus rows scanned for hostnames (one row per device event)
+SUGGEST_TTL = 120               # seconds a suggestion answer is reused
+SUGGEST_CACHE_MAX = 200         # answers kept per session
+SUGGEST_FIELDS = IDENTITY_FIELDS[:2]   # UPN and email; accounts.emails only repeats them
+
+
+def _user_items(client, text: str) -> tuple[list[dict], bool]:
+    """Users whose UPN or email starts with text. Returns (items, complete)."""
+    want = text.lower()
+    items: dict[str, dict] = {}
+    complete = True
+    for i, fld in enumerate(SUGGEST_FIELDS):
+        try:
+            body = _call(client, "POST", "/api/v2/users/getusers", "user management", "users",
+                         json=getusers_body(text, page_size=SUGGEST_LIMIT, field=fld))
+        except ApiProblem as e:
+            if i and e.kind == "rejected":      # tenant cannot filter on this fallback field
+                continue
+            raise
+        rows = [r for r in (body.get("data") if isinstance(body, dict) else None) or [] if isinstance(r, dict)]
+        if len(rows) >= SUGGEST_LIMIT:
+            complete = False                    # there may be more than one page
+        for row in rows:
+            u = user_record(row)
+            names = [a.upn for a in u.accounts if a.upn] + [u.id, *u.emails]
+            value = next((n for n in names if n.lower().startswith(want)), "")
+            if not value or value.lower() in items:
+                continue
+            others = sorted({n for n in names if n and n.lower() != value.lower()}, key=str.lower)
+            items[value.lower()] = {
+                "kind": "user", "value": value,
+                "detail": " · ".join(x for x in (u.name, others[0] if others else "") if x),
+                "match": sorted({n.lower() for n in names if n}),
+            }
+        if len(items) >= SUGGEST_LIMIT:
+            break
+    return list(items.values()), complete
+
+
+def _host_items(client, text: str, now: int) -> tuple[list[dict], bool]:
+    """Hostnames containing text, seen in the last 7 days. Returns (items, complete)."""
+    host = text.replace("'", "’")          # Mac names use a curly apostrophe; ' cannot be quoted
+    body = _call(client, "GET", "/api/v2/events/datasearch/clientstatus", "device status", "devices",
+                 params={"query": f"hostname like {_quote(host)}", "starttime": now - WINDOWS_DAYS[0] * 86400,
+                         "endtime": now, "limit": SUGGEST_HOST_ROWS})
+    rows = _rows(body)
+    seen: dict[str, dict] = {}
+    for r in rows:
+        d = Device.from_row(r)
+        if not d.hostname:
+            continue
+        item = seen.setdefault(d.hostname.lower(), {"kind": "host", "value": d.hostname, "users": set(),
+                                                    "os": d.os, "match": [d.hostname.lower()]})
+        user = str(r.get("username") or (r.get("user_info") or {}).get("username") or "")
+        if user:
+            item["users"].add(user.lower())
+    items = []
+    for item in seen.values():
+        users = sorted(item.pop("users"))
+        who = users[0] if len(users) == 1 else (f"{len(users)} users" if users else "")
+        item["detail"] = " · ".join(x for x in (who, item.pop("os")) if x)
+        items.append(item)
+    items.sort(key=lambda i: i["value"].lower())
+    return items, len(rows) < SUGGEST_HOST_ROWS
+
+
+def _from_cache(store: dict, key: str) -> dict | None:
+    """Exact answer, or a complete answer for a shorter prefix filtered down to key."""
+    now = time.monotonic()
+    hit = store.get(key)
+    if hit and now - hit["at"] < SUGGEST_TTL:
+        return hit
+    for n in range(len(key) - 1, 0, -1):
+        hit = store.get(key[:n])
+        if hit and hit["complete"] and now - hit["at"] < SUGGEST_TTL:
+            items = [i for i in hit["items"]
+                     if any(m.startswith(key) if i["kind"] == "user" else key in m for m in i["match"])]
+            return {"at": hit["at"], "complete": True, "items": items, "error": None}
+    return None
+
+
+def suggest(new_client, text: str, cache: dict, now: int | None = None) -> dict:
+    """Type-ahead for the lookup box: users by UPN/email prefix, hostnames by substring.
+
+    new_client() returns a fresh client (closed here); the two searches run in
+    parallel on separate clients. A failure in one search still returns the
+    other's results, with the message in "error". An invalid token always raises.
+    """
+    now = int(now if now is not None else time.time())
+    store = cache.setdefault("suggest", {})
+    key = text.lower()
+    hit = _from_cache(store, key)
+    if hit is None:
+        jobs = {"users": lambda c: _user_items(c, text)}
+        if "@" not in text:
+            jobs["hosts"] = lambda c: _host_items(c, text, now)
+        results: dict[str, tuple[list[dict], bool]] = {}
+        errors: list[ApiProblem] = []
+
+        def run(name):
+            client = new_client()
+            try:
+                results[name] = jobs[name](client)
+            except ApiProblem as e:
+                errors.append(e)
+            finally:
+                client.close()
+
+        with ThreadPoolExecutor(max_workers=len(jobs)) as pool:
+            list(pool.map(run, jobs))
+        for e in errors:
+            if e.kind == "invalid_token":
+                raise e
+        items = [i for name in ("users", "hosts") for i in results.get(name, ([], True))[0]]
+        hit = {"at": time.monotonic(), "items": items, "error": errors[0].message if errors else None,
+               "complete": not errors and all(c for _, c in results.values())}
+        if not errors:
+            if len(store) >= SUGGEST_CACHE_MAX:   # snapshot: overlapping requests may change the dict
+                oldest = min(list(store.items()), key=lambda kv: kv[1]["at"])[0]
+                store.pop(oldest, None)
+            store[key] = hit
+    # Keep room for both kinds: hostnames get at least half the list when there are enough.
+    users = [i for i in hit["items"] if i["kind"] == "user"]
+    hosts = [i for i in hit["items"] if i["kind"] == "host"]
+    n_hosts = min(len(hosts), max(SUGGEST_LIMIT // 2, SUGGEST_LIMIT - len(users)))
+    shown = users[:SUGGEST_LIMIT - n_hosts] + hosts[:n_hosts]
+    return {"items": [{k: i[k] for k in ("kind", "value", "detail")} for i in shown], "error": hit["error"]}
 
 
 # ---- presentation helpers ----------------------------------------------------------
