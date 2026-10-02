@@ -6,7 +6,9 @@ It is built for a private network (LAN, VPN or zero-trust access) behind a TLS-t
 
 ## Demo video (4 min)
 
-[![AS4PUR demo](docs/images/dashboard.png)](https://github.com/Aks2812/AS4PUR-/raw/refs/heads/main/docs/media/AS4PUR-V1_0_compressed.mp4)
+![AS4PUR preview](docs/images/demo-preview.gif)
+
+[Watch the full demo (4 min)](https://github.com/Aks2812/AS4PUR-/raw/refs/heads/main/docs/media/AS4PUR-V1_0_compressed.mp4)
 
 ## What it does
 
