@@ -6,12 +6,13 @@ It is built for a private network (LAN, VPN or zero-trust access) behind a TLS-t
 
 ## What it does
 
-Five operations, each started from the dashboard:
+Six operations, each started from the dashboard:
 
 - **Private app definition (Private App Import)** - upload an Excel list of apps, choose the publishers, review a dry run that skips apps whose name or destination and port already exist, then create the rest in paced batches and check afterwards that they exist in the tenant.
 - **RTP creation** - resolve a list of users from an HR or directory export to their real Netskope email addresses, then create a Private Access policy rule for them (always created disabled, then re-read to confirm the stored users); users can also be added to an existing rule.
 - **User provision (Local Group / User Import)** - create SCIM users, and optionally a group, from a CSV or Excel file in a tenant that has no Entra/SCIM sync of its own, with a validation step and a review before anything is written.
 - **Device Posture Validation** - read-only: look up a user's devices and their posture status together with the tenant's device classification rules, or upload a device's `nsdebug.log` to see which posture checks it reports.
+- **User Lookup** - read-only: look up a user by email, UPN or hostname and see their user-management record, their devices, and which Private Access (NPA) policy rules apply to each device.
 - **Data Export** - read-only: export private apps (including protocols and ports) and users and groups to CSV.
 
 Around the operations: a real login (accounts are created by an administrator, there is no self-registration), an audit history of every run with a CSV export, administrator pages for invites and user management, and a built-in Help page.
@@ -40,6 +41,102 @@ AS4PUR is an unofficial tool. It is not affiliated with, endorsed by or supporte
 
 - `[verified]` - the same step was run in a fresh clone of this repository, on Windows, with Python 3.11 and with Python 3.12 (the Windows equivalent of each path, for example `.venv\Scripts\python.exe` for `.venv/bin/python`).
 - `[not executed]` - written from the repository's deploy files and standard tooling, and never run. Nothing in this document was run on Ubuntu.
+
+## Installation
+
+There are two ways to install AS4PUR:
+
+- **With Docker, one command** - described right below. Docker runs the app and an nginx proxy with HTTPS for you; no Python, venv, systemd unit or nginx install on the host.
+- **Manually, with Python, systemd and nginx** - the sections from "Requirements" to "Example systemd unit" further down.
+
+Everything else in this README (configuration, single worker, backups, security) applies to both.
+
+### Installation with Docker
+
+**What you get:** two containers started by `docker-compose.yml`:
+
+| Container | What it does |
+|---|---|
+| `as4pur-app` | The application: built from `Dockerfile` (Python 3.12, exact pins from `requirements.txt`), runs as a non-root user, applies database migrations on every start, then runs **one** uvicorn process (`WEB_CONCURRENCY=1` is pinned). Port 8000 is only reachable from the nginx container, never from the host. |
+| `as4pur-nginx` | TLS (HTTPS) on port 443, redirect from port 80, with the same TLS 1.3 profile, rate limits and 55 MiB upload limit as `deploy/nginx_as4pur.conf` (`deploy/docker/nginx.conf`). |
+
+The database and temporary uploads live in the Docker volume `as4pur-data`, so they survive rebuilds, restarts and updates.
+
+**Requirements:** a Linux host with Docker Engine and the Docker Compose plugin, outbound HTTPS to `<tenant>.goskope.com`, and ports 80/443 free (or other ports, see below). Python is not needed on the host.
+
+```
+# [not executed]  Ubuntu: install Docker Engine + Compose plugin (Docker's official convenience script)
+curl -fsSL https://get.docker.com | sudo sh
+sudo usermod -aG docker $USER      # then log out and back in, or run deploy.sh with sudo
+```
+
+**Install and start (one command):**
+
+```
+# [not executed]
+git clone <REPO_URL> as4pur
+cd as4pur
+./deploy.sh
+```
+
+`deploy.sh` does, in order:
+
+1. Checks that Docker and Compose are installed and the Docker daemon is reachable.
+2. Creates `.env` from `.env.example` if it does not exist yet (`chmod 600`). It warns if `AS4PUR_INVITE_ALLOWED_DOMAINS` is still empty or the `example.com` placeholder.
+3. Creates a self-signed TLS certificate in `deploy/docker/certs/` if none is there (825 days, for the host name, `localhost` and `127.0.0.1`). It uses `openssl` on the host, or a throwaway container if `openssl` is missing.
+4. Builds the image and starts both containers (`docker compose up -d --build`).
+5. Waits until the app reports healthy (a request to `/login` answers 200), and prints the last log lines if it does not.
+6. If no account exists yet, asks for an admin username and runs `scripts/create_user.py` (password prompt, 12+ characters). Without a terminal it prints the command instead.
+7. Prints the URL, for example `https://<your-host>`.
+
+Run it again at any time: an existing `.env` and certificate are never overwritten.
+
+**Configuration:** edit `.env` (same `AS4PUR_` variables as in "Configuration" below), then run `./deploy.sh` again. In Docker these values are fixed by `docker-compose.yml` and cannot be changed from `.env`: `AS4PUR_DATABASE_PATH` (`/app/data/as4pur.db`), `AS4PUR_UPLOAD_TEMP_DIR` (`/app/data/uploads_tmp`) and `WEB_CONCURRENCY` (`1`). Keep `AS4PUR_SECURE_COOKIES=true`: nginx serves HTTPS. Extra settings that only the Docker setup reads from `.env` (or from the shell):
+
+| Variable | Meaning | Default |
+|---|---|---|
+| `HTTPS_PORT` | Host port for HTTPS. | `443` |
+| `HTTP_PORT` | Host port that redirects to HTTPS. | `80` |
+| `CERT_HOST` | Host name written into the self-signed certificate (only used when the certificate is created). | the host's name |
+
+**Your own certificate (internal CA):** put `fullchain.pem` and `privkey.pem` into `deploy/docker/certs/` (replace the self-signed ones), then `docker compose restart nginx`. The folder is git-ignored.
+
+**Daily operation:**
+
+```
+# [not executed]
+./deploy.sh --logs                 # follow the app logs (Ctrl+C to stop following)
+./deploy.sh --stop                 # stop both containers; data stays in the as4pur-data volume
+docker compose ps                  # status and health
+docker compose exec app python scripts/create_user.py <username> admin    # create or reset an account
+```
+
+**Update:**
+
+```
+# [not executed]
+git pull --ff-only
+./deploy.sh
+```
+
+Migrations run automatically when the new container starts. As in "Upgrade" below: take a backup first and update when no job is running, because a restart drops everything held in memory (running jobs, entered tokens, unfinished wizards).
+
+**Backup** (SQLite online backup inside the container, then copied out):
+
+```
+# [not executed]
+docker compose exec app python -c "import sqlite3; s = sqlite3.connect('/app/data/as4pur.db'); d = sqlite3.connect('/app/data/backup.db'); s.backup(d); d.close()"
+docker compose cp app:/app/data/backup.db ./as4pur-backup.db
+docker compose exec app rm /app/data/backup.db
+```
+
+**Notes:**
+
+- One app container only. Never scale it (`docker compose up --scale app=2`) or add `--workers`: see "Run" for why AS4PUR must be a single process.
+- `docker compose down -v` **deletes the `as4pur-data` volume**, meaning every account, the audit log and the job history. Plain `docker compose down` (or `./deploy.sh --stop`) keeps it.
+- Private network only, exactly as for the manual install: do not open ports 80/443 to the internet. Use the host firewall from `deploy/README_DEPLOY.md` (section 8) here too.
+- Behind a load balancer that terminates TLS itself, the nginx container is still in the path; see "B. Cloud VM" for the forwarded-header and timeout points.
+- What was checked: the image's start sequence (`alembic upgrade head` on an empty database, then uvicorn with the container's settings and health check) was run against this repository outside Docker, and the certificate command was run. The Docker build and the containers themselves have not been run yet.
 
 ## Requirements
 
@@ -288,5 +385,7 @@ alembic/            database migrations (alembic.ini at the root)
 reference_scripts/  proven CLI scripts; parts are imported by the application at runtime, so keep this folder
 scripts/            create_user.py (creates the first administrator)
 deploy/             example systemd unit, nginx configuration, deployment notes
+deploy/docker/      nginx configuration and entrypoint for the Docker setup
+Dockerfile, docker-compose.yml, deploy.sh   the Docker setup ("Installation with Docker")
 docs/               design notes for the UI; docs/images/ holds the README screenshots
 ```

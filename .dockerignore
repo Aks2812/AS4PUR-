@@ -1,0 +1,25 @@
+# Kept out of the image: VCS, local state, secrets, per-machine files, docs.
+.git
+.gitattributes
+.gitignore
+.dockerignore
+.venv
+venv
+**/__pycache__
+**/*.pyc
+.pytest_cache
+.claude
+tests
+data
+*.db
+.env
+.env.*
+!.env.example
+deploy/docker/certs
+*.pem
+*.key
+docs
+docker-compose.yml
+Dockerfile
+deploy.sh
+CLAUDE.md
