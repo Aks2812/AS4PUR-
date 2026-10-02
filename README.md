@@ -4,6 +4,9 @@ AS4PUR (Automation System for Private App Definition, User Provision, and RTP Cr
 
 It is built for a private network (LAN, VPN or zero-trust access) behind a TLS-terminating reverse proxy. **Do not expose it to the internet.** Netskope tenant names and API tokens are typed in by the operator for each run and are never stored.
 
+## Demo video (4 min)
+[![AS4PUR demo](docs/images/dashboard.png)](docs/media/demo.mp4)
+
 ## What it does
 
 Six operations, each started from the dashboard:
