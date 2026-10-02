@@ -82,6 +82,20 @@ def pick_exact(rows: list[dict], value: str) -> list[dict]:
     return out
 
 
+SUGGEST_MIN = 3     # characters before suggestions are fetched
+_SUGGEST_RE = re.compile(r"^[\w.@+'’ -]{%d,100}$" % SUGGEST_MIN)
+
+
+def suggest_text(raw: str) -> str | None:
+    """Partial input for type-ahead, or None when it is too short or has odd characters.
+
+    Looser than classify_query (half an email or hostname is fine) but limited to
+    the characters an email, UPN or hostname can contain.
+    """
+    q = re.sub(r" {2,}", " ", (raw or "").strip())
+    return q if _SUGGEST_RE.match(q) else None
+
+
 def classify_query(raw: str, allowed_domains: tuple[str, ...] = ()) -> Query:
     """Decide whether the input is an email/UPN or a hostname, and validate it.
 

@@ -16,6 +16,7 @@ from __future__ import annotations
 import time
 
 from fastapi import APIRouter, Depends, Form, Request
+from fastapi.responses import JSONResponse
 
 from ...auth.dependencies import require_login
 from ...models import User
@@ -26,17 +27,31 @@ from ..netskope_http import NetskopeApiError, base_url
 from ..validation import tenant_token_error_message
 from ..wizard_expired import wizard_expired_response
 from .client import TenantClient
-from .lookup import classify_query
-from .service import ApiProblem, humanize_age, match_view, run_lookup
+from .lookup import classify_query, suggest_text
+from .service import ApiProblem, humanize_age, match_view, run_lookup, suggest
 
 router = APIRouter(prefix="/operations/user-lookup")
 
 FLOW = "User Lookup"
 START_URL = "/operations/user-lookup"
 
+SUGGEST_MAX = 120          # type-ahead requests per minute per tenant session (debounced in the browser)
+SUGGEST_WINDOW = 60
+
 
 def _session_key(request: Request) -> str:
     return request.state.session.token_hash
+
+
+def _suggest_allowed(entry) -> bool:
+    """Sliding-window limit kept with the cached tenant entry, so it goes away with the token."""
+    now = time.monotonic()
+    hits = [t for t in entry.data.get("user_lookup_suggest_hits", []) if now - t < SUGGEST_WINDOW]
+    if len(hits) >= SUGGEST_MAX:
+        entry.data["user_lookup_suggest_hits"] = hits
+        return False
+    entry.data["user_lookup_suggest_hits"] = hits + [now]
+    return True
 
 
 def _fmt_ts(ts: int) -> str:
@@ -149,3 +164,34 @@ def submit_lookup(
         request, entry.tenant, query_text=query.value, q=query, report=report, now=int(time.time()),
         age=humanize_age, fmt_ts=_fmt_ts, mv=lambda m: match_view(m, report.class_names),
     )
+
+
+@router.post("/suggest")
+def suggestions(
+    request: Request,
+    user: User = Depends(require_login),
+    csrf_token: str = Form(default=""),
+    q: str = Form(default=""),
+):
+    """Type-ahead for the lookup box. POST + CSRF, so typed text stays out of URLs and logs.
+
+    Always answers JSON ({"items": [...], "error": str | None}) - the page script
+    shows "error" as a note under the box and never parses anything as HTML.
+    """
+    verify_csrf(request, csrf_token)
+    entry = credential_cache.get(_session_key(request))
+    if entry is None or entry.flow != FLOW:
+        return JSONResponse({"items": [], "error": "Your tenant session expired. Go back and enter the tenant and token again."},
+                            status_code=410)
+    if not _suggest_allowed(entry):
+        return JSONResponse({"items": [], "error": "Too many suggestions requested. Keep typing and press Look up."},
+                            status_code=429)
+    text = suggest_text(q)
+    if text is None:
+        return JSONResponse({"items": [], "error": None})
+    cache = entry.data.setdefault("user_lookup_cache", {})
+    try:
+        result = suggest(lambda: TenantClient(entry.tenant, entry.token), text, cache)
+    except ApiProblem as exc:
+        return JSONResponse({"items": [], "error": exc.message}, status_code=502)
+    return JSONResponse(result)

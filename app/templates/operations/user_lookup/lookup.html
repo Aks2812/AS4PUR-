@@ -8,11 +8,17 @@
 
 <form method="post" action="{{ action }}" class="stacked-form" autocomplete="off">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-  <label>Email, UPN or hostname
-    <input type="search" name="q" value="{{ query_text }}" required maxlength="320" autofocus
-           autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="name@company.com or LAPTOP-ABC123">
-  </label>
-  <p class="hint">Email and UPN are both accepted; one is resolved to the other through user management.</p>
+  <label for="q">Email, UPN or hostname</label>
+  <div class="typeahead" data-suggest-url="/operations/user-lookup/suggest">
+    <input id="q" type="search" name="q" value="{{ query_text }}" required maxlength="320" autofocus
+           autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"
+           placeholder="name@company.com or LAPTOP-ABC123"
+           role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="q-suggestions"
+           aria-describedby="q-hint">
+    <ul id="q-suggestions" class="typeahead-list" role="listbox" aria-label="Suggestions" hidden></ul>
+    <div class="sr-only" aria-live="polite" data-typeahead-status></div>
+  </div>
+  <p class="hint" id="q-hint">Type 3 or more characters for suggestions. Email and UPN are both accepted; one is resolved to the other through user management.</p>
   <button type="submit">Look up</button>
 </form>
 
@@ -114,4 +120,5 @@
 {% endif %}
 
 {% include "partials/back_link.html" %}
+<script src="/static/js/user-lookup-typeahead.js"></script>
 {% endblock %}
