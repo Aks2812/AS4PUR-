@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}User Lookup — {{ app_name }}{% endblock %}
+{% block content %}
+<h1>User Lookup</h1>
+<p class="step-indicator">Step 1 of 2 &middot; Tenant and API token</p>
+
+{% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+
+<p class="hint">Look up a user by email, UPN or hostname: their user-management record, devices, and the NPA policies that apply. Read-only, nothing is changed on the tenant.</p>
+<p class="hint">The token needs read access to: users, client status, device classification, NPA policy rules and private apps.</p>
+
+{% include "partials/tenant_token_form.html" %}
+{% include "partials/back_link.html" %}
+{% endblock %}
