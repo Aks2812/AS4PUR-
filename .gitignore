@@ -93,3 +93,6 @@ storage_state*.json
 .vscode/
 Thumbs.db
 .DS_Store
+
+# Docker setup: TLS certificate created by deploy.sh (or your own)
+/deploy/docker/certs/

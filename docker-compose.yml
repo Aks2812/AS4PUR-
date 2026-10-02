@@ -1,0 +1,44 @@
+# AS4PUR with Docker: `./deploy.sh` (README, "Installation with Docker").
+#   app   - the FastAPI app, one uvicorn process, port 8000 on the internal network only
+#   nginx - TLS on HTTPS_PORT (default 443), HTTP_PORT (default 80) redirects to it
+# State (SQLite database, temporary uploads) lives in the "as4pur-data" volume.
+
+services:
+  app:
+    build: .
+    image: as4pur:latest
+    container_name: as4pur-app
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # Container paths and the single-worker pin win over anything in .env.
+      AS4PUR_DATABASE_PATH: /app/data/as4pur.db
+      AS4PUR_UPLOAD_TEMP_DIR: /app/data/uploads_tmp
+      WEB_CONCURRENCY: "1"
+    volumes:
+      - as4pur-data:/app/data
+    expose:
+      - "8000"
+    mem_limit: 512m
+    pids_limit: 512
+    security_opt:
+      - no-new-privileges:true
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: as4pur-nginx
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    volumes:
+      - ./deploy/docker/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./deploy/docker/certs:/etc/nginx/certs:ro
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  as4pur-data:
