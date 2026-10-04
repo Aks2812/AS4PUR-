@@ -1,6 +1,6 @@
 # AS4PUR
 
-AS4PUR (Automation System for Private App Definition, User Provision, and RTP Creation) is an internal web application for engineers who administer Netskope tenants. It turns administration tasks that are otherwise done with scripts or by hand in the Netskope console - bulk-creating private apps and access policies, provisioning users, checking device posture, exporting tenant data - into guided steps in a browser: you review what will change before anything is written, and every run is recorded in an audit history. It is a FastAPI application with server-rendered Jinja2 pages and a SQLite database.
+AS4PUR (Automation System for Private App Definition, User Provision, and RTP Creation) is an internal web application for engineers who administer Netskope tenants. It turns administration tasks that are otherwise done with scripts or by hand in the Netskope console - bulk-creating private apps and access policies, provisioning users, checking device posture, looking up users, exporting tenant data - into guided steps in a browser: you review what will change before anything is written, and every run is recorded in an audit history. It is a FastAPI application with server-rendered Jinja2 pages and a SQLite database.
 
 It is built for a private network (LAN, VPN or zero-trust access) behind a TLS-terminating reverse proxy. **Do not expose it to the internet.** API tokens are typed in by the operator for each run and are never stored. Tenant names are typed in for each run too and are not kept as settings or defaults, but the name is recorded in the audit history and job records of each run.
 
@@ -17,7 +17,7 @@ Six operations, each started from the dashboard:
 - **Private app definition (Private App Import)** - upload an Excel list of apps, choose the publishers, review a dry run that skips apps whose name or destination and port already exist, then create the rest in paced batches and check afterwards that they exist in the tenant.
 - **RTP creation** - resolve a list of users from an HR or directory export to their real Netskope email addresses, then create a Private Access policy rule for them (always created disabled, then re-read to confirm the stored users); users can also be added to an existing rule.
 - **User provision (Local Group / User Import)** - create SCIM users, and optionally a group, from a CSV or Excel file in a tenant that has no Entra/SCIM sync of its own, with a validation step and a review before anything is written.
-- **Device Posture Validation** - read-only: look up a user's devices and their posture status together with the tenant's device classification rules, or upload a device's `nsdebug.log` to see which posture checks it reports.
+- **Device Posture Validation** - read-only: look up a user's devices and their posture status together with the tenant's device classification rules, or upload a device's `nsdebug.log` to see which posture checks it reports (optionally cross-referenced with the tenant's live classification rule).
 - **User Lookup** - read-only: look up a user by email, UPN or hostname and see their user-management record, their devices, and which Private Access (NPA) policy rules apply to each device.
 - **Data Export** - read-only, three exports to CSV: private apps (including protocols and ports); users and groups; and **users per NPA policy** - pick one or more Private Access policies and get one file listing who each applies to (its direct users, the members of its groups looked up by name and expanded, and its organizational units), with any group that cannot be resolved shown as an `UNRESOLVED` row. The last one runs in the background with a progress bar, and needs a token that can read NPA policies, SCIM groups **and** users (users are only read when a chosen policy uses a group).
 
@@ -25,9 +25,17 @@ Around the operations: a real login (accounts are created by an administrator, t
 
 ### Data Export
 
-Read-only: nothing is written to the tenant. After entering the tenant and token, the Data Export page offers three exports: **Private apps**, **Users and groups**, and **Users per NPA policy**.
+Read-only: nothing is written to the tenant. After entering the tenant and token, the Data Export page offers three exports: **Private apps**, **Users and groups**, and **Users per NPA policy**. The page, and every page of the Users per NPA policy flow, shows the tenant of the current run in a "Tenant" pill.
 
-**Users per NPA policy** answers "who does this policy apply to?". You load the tenant's Private Access policies, pick one or more from a searchable list (name, id, action, an enabled/disabled badge, and how many direct users and groups each names), check a preview of what the run will do, and start it. It runs in the background with a progress bar, then offers a CSV download and shows any warnings. Each run leaves one entry in the audit history (who, when, the tenant name, the policy and row counts, the status; never the token, a user, a group or a policy name), and each download adds an audit-log row (who, when, tenant, row count).
+![AS4PUR Data Export page: a Tenant pill showing a made-up tenant name, a notice to handle the files as sensitive data, and three cards - Private apps, Users and groups, Users per NPA policy - each listing the token scopes it needs and an export button](docs/images/data-export.png)
+
+*The Data Export page, from a throwaway instance with a made-up tenant name; no tenant was connected.*
+
+- **Private apps** - one CSV of every private app, including protocols and ports written in the format Private app definition accepts. Needs a token that can read private apps.
+- **Users and groups** - users (one row per account), groups and memberships as three CSVs plus one ZIP with all three. Deleted accounts are left out unless "Include deleted accounts" is switched on. Needs a token that can read users and groups.
+- **Users per NPA policy** - described next.
+
+**Users per NPA policy** answers "who does this policy apply to?". You load the tenant's Private Access policies, pick one or more from a searchable list (name, id, action, an enabled/disabled badge, and how many direct users, groups and organizational units each names), check a preview of what the run will do, and start it. It runs in the background with a progress bar, then offers a CSV download and shows any warnings. Each run leaves one entry in the audit history (who, when, the tenant name, the policy and row counts, the status; never the token, a user, a group or a policy name), and each download adds an audit-log row (who, when, tenant, row count).
 
 The token needs three read permissions, and a missing one stops the run with a message and no file:
 
@@ -35,7 +43,7 @@ The token needs three read permissions, and a missing one stops the run with a m
 - **SCIM groups** - to look each group up by name (`displayName`) and read its members.
 - **Users** - to turn the SCIM member ids into email addresses. This is only read when a chosen policy uses a group.
 
-CSV columns, in this order (UTF-8 with a BOM; the file is named `as4pur-npa-policy-users-<UTC timestamp>.csv` and never contains the tenant name):
+CSV columns, in this order (UTF-8 with a BOM; the file is named `as4pur-npa-policy-users-YYYYMMDD-HHMMSSZ.csv` with the UTC time of the run, and the tenant name is never part of the file name):
 
 | Column | Meaning |
 |---|---|
@@ -48,19 +56,20 @@ CSV columns, in this order (UTF-8 with a BOM; the file is named `as4pur-npa-poli
 | `status` | `OK`, `UNRESOLVED`, `EMPTY` or `ALL_USERS` (see below). |
 | `reason` | Empty unless `status` is `UNRESOLVED` or `EMPTY`, where it says why. |
 
-- **`UNRESOLVED`** - something the policy names could not be turned into users: a group not found by name, a name shared by two groups, members that SCIM did not return, a member that is not in the tenant's user list, or an entry that could not be read. The row has an empty `user` and the explanation in `reason`, the run page shows a warning, and the rest of the file is still produced. Nothing is dropped and nothing is guessed.
+- **`UNRESOLVED`** - something the policy names could not be turned into users: a group not found by name, a name shared by two groups, members that SCIM did not return, a member who is missing from, or matches several users in, the tenant's user list, or an entry that could not be read. The row has an empty `user` and the explanation in `reason`, the run page shows a warning, and the rest of the file is still produced. Nothing is dropped and nothing is guessed.
 - **`EMPTY`** - the group was found and read, and it has no members: membership *was* determined and is zero. One row with `via` = `group`, `group_name` set, an empty `user` and `reason` = `group has no members`. It is not the same as `UNRESOLVED` (membership could not be determined) and it does not raise a warning by itself; the run page counts it separately.
-- **`ALL_USERS`** - the policy names no users, groups or organizational units, so it does not restrict by user. One row, `user` = `ALL_USERS (no user/group restriction)`, `via` = `all_users`, `reason` empty.
+- **`ALL_USERS`** - the policy names no users, groups or organizational units (and has no unreadable entries), so it does not restrict by user. One row, `user` = `ALL_USERS (no user/group restriction)`, `via` = `all_users`, `reason` empty.
 - **`enabled`** is informational: a disabled policy is still exported, so filter on the column if you only want enabled ones.
 - Nothing is merged across `via`: a user reachable directly and through two groups has three rows. A group that exists but has no members has one `EMPTY` row (see above), so it is never silently dropped.
-- A failed run stores and shows only a fixed message built from known parts: the phase (`loading policies`, `resolving users`, `expanding groups`, `building the file`), a short category (auth, scope, rate limit, server error, timeout, network, tls, rejected, unexpected reply, truncation/mismatch, limit) and the HTTP status code. Netskope's own error text is never stored, logged or shown, because it can echo a group name or mention an unrelated user.
-- Every list is read to the end and, wherever the tenant reports a total, checked against it (the policy list may come without one; the page says so); a short or inconsistent answer fails the run with an error instead of producing a partial file. Hard ceilings apply (2,000 API calls and 200,000 rows per export), and rate-limit (HTTP 429) answers are retried, waiting as long as Netskope asks or a short back-off.
+- A cell that starts with `=`, `+`, `-`, `@`, a tab or a carriage return gets a leading `'`, so a spreadsheet does not read it as a formula.
+- A failed run stores and shows only a fixed message built from known parts: the phase (`loading policies`, `resolving users`, `expanding groups`, `building the file`), a short category (auth, scope, rate limit, server error, timeout, network, tls, rejected, unexpected reply, truncation/mismatch, limit, internal error) and the HTTP status code. Netskope's own error text is never stored, logged or shown, because it can echo a group name or mention an unrelated user.
+- Every list is read to the end and, wherever the tenant reports a total, checked against it (the policy list may come without one; the page says so); a short or inconsistent answer fails the run with an error instead of producing a partial file. Hard ceilings apply (2,000 API calls and 200,000 rows per export), and rate-limit (HTTP 429) and server-error (5xx) answers are retried, waiting as long as Netskope asks or a short back-off.
 - The file lists email addresses, so handle it as sensitive data. It is held in process memory only, for 10 minutes, for the session that ran it, and is gone after a restart or logout. Until role enforcement is added, any signed-in account can run this export.
-- How a policy's group entries map to SCIM groups (by `displayName`) follows Netskope's documentation and mocked tests; it has not yet been confirmed against a real tenant. A group that does not resolve shows up as `UNRESOLVED`.
+- How a policy's group entries map to SCIM groups (by `displayName`) follows Netskope's documentation and mocked tests, and has been checked once against a real production tenant, for a group-based policy: the number of users exported matched the count in the Netskope console. It has not been confirmed for every kind of group or for every tenant, so compare the first export on a tenant with the console. A group that does not resolve shows up as `UNRESOLVED`.
 
 ## Screenshots
 
-Taken from a throwaway instance with an empty database and a demo account.
+No tenant name, API token or tenant data appears in these screenshots. The Data Export page is shown in the "Data Export" section above.
 
 ![AS4PUR landing page: a dark navy brand panel on the left; on the right the heading "Secure Access. Automated.", three feature summaries, an illustration and a "Go to Login" button](docs/images/landing.png)
 
@@ -81,7 +90,7 @@ AS4PUR is an unofficial tool. It is not affiliated with, endorsed by or supporte
 **Verification legend.** Commands in this file are tagged on their first line:
 
 - `[verified]` - the same step was run in a fresh clone of this repository, on Windows, with Python 3.11 and with Python 3.12 (the Windows equivalent of each path, for example `.venv\Scripts\python.exe` for `.venv/bin/python`).
-- `[not executed]` - written from the repository's deploy files and standard tooling, and never run. Nothing in this document was run on Ubuntu.
+- `[not executed]` - written from the repository's deploy files and standard tooling, and not run one by one for this document. The Docker deployment is running on the maintainers' on-prem server; "Installation with Docker" says exactly what that does and does not cover.
 
 ## Installation
 
@@ -177,7 +186,7 @@ docker compose exec app rm /app/data/backup.db
 - `docker compose down -v` **deletes the `as4pur-data` volume**, meaning every account, the audit log and the job history. Plain `docker compose down` (or `./deploy.sh --stop`) keeps it.
 - Private network only, exactly as for the manual install: do not open ports 80/443 to the internet. Use the host firewall from `deploy/README_DEPLOY.md` (section 8) here too.
 - Behind a load balancer that terminates TLS itself, the nginx container is still in the path; see "B. Cloud VM" for the forwarded-header and timeout points.
-- What was checked: the image's start sequence (`alembic upgrade head` on an empty database, then uvicorn with the container's settings and health check) was run against this repository outside Docker, and the certificate command was run. The Docker build and the containers themselves have not been run yet.
+- **Status:** this Docker setup (the `as4pur-app` and `as4pur-nginx` containers with TLS, started with `./deploy.sh`) is running on the maintainers' on-prem server, and updates there are applied with `git pull` and `./deploy.sh`. That is the only environment it is known to run in. Not verified: other hosts, specific Linux distributions or versions, cloud platforms, a load balancer in front, and more than one app container (which must not be used, see above). The individual command blocks in this section keep the `[not executed]` tag: they were not run one by one for this document.
 
 ## Requirements
 
@@ -256,7 +265,7 @@ There are no default accounts. Create the first administrator on the host:
 .venv/bin/python scripts/create_user.py <username> admin
 ```
 
-Then open `https://<your-host>/login`. An administrator invites everyone else from `/admin` (invite links are single-use). Invites are only accepted for the email domains listed in `AS4PUR_INVITE_ALLOWED_DOMAINS`; set it in `.env` and restart the app before inviting anyone.py`; change it there if your organisation uses a different domain.
+Then open `https://<your-host>/login`. An administrator invites everyone else from `/admin` (invite links are single-use). Invites are only accepted for the email domains listed in `AS4PUR_INVITE_ALLOWED_DOMAINS`; set it in `.env` and restart the app before inviting anyone.
 
 If login seems not to stick when you test over plain `http://` at a hostname or LAN address, set `AS4PUR_SECURE_COOKIES=false` in `.env`, restart, and set it back to `true` for real use. (`http://127.0.0.1` is exempt in modern browsers, so it will not show the problem.)
 
@@ -418,6 +427,18 @@ A backup contains user accounts (password hashes), the audit log and job history
 - **Secrets:** the app needs none. `.env` holds settings only; it is git-ignored and should be `chmod 600`. Never commit it.
 - **Netskope tokens:** entered per operation, kept only in process memory, dropped at logout or expiry, and never written to the database, logs or audit records. Data Export files are built in memory and are not written to disk.
 - **Uploads:** type and size limits are enforced before parsing; temporary files are deleted after processing.
+
+## Known limitations
+
+Facts about the current version, each checked against the code:
+
+- **One worker process only.** Netskope tokens, unfinished wizards, running background jobs, finished Data Export files and the login rate limiter live in the memory of that one process. The app refuses to start when `WEB_CONCURRENCY` is anything but `1`, but it cannot see `--workers N`, `UVICORN_WORKERS` or several instances (see "Run").
+- **State in process memory is lost on restart:** running jobs, entered tokens, unfinished wizards and exports that were not downloaded yet. The database (accounts, audit log, job history) survives.
+- **No role gate on the operations yet.** Accounts have a role (operator, viewer or administrator), but only the administrator pages (`/admin`) check it; the operator and viewer roles are not enforced. Any signed-in account can run every operation, including the Data Export exports that list user email addresses.
+- **Job and audit records can hold user and network data at rest.** They sit unencrypted (the app does no encryption of its own) in the SQLite database and its backups. User provision can store the email addresses it processed, RTP creation can store the email addresses of users it removed from a rule, Private app definition can store app names and destinations, and the job and audit rows of an operation carry the tenant name and the operator's username. The Users per NPA policy export stores none of the policy, group or user names it reads. Neither the database nor a backup contains an API token.
+- **Private network only.** AS4PUR is built to sit behind a TLS-terminating reverse proxy on a LAN, VPN or zero-trust path, and sends HSTS on every response. It is not designed to be reachable from the internet.
+- **Large Data Export runs can time out at the proxy.** The private apps and the users and groups exports run in one request, which nginx cuts off after 60 seconds unless `proxy_read_timeout` is raised (see "nginx notes"). Users per NPA policy runs as a background job and is not affected.
+- **Token and tenant input is normalised on entry.** Surrounding spaces and line breaks are removed from both. A control character (including a line break) inside either, or a character in the token that cannot be sent in an HTTP header, is refused with a short message that does not repeat what was typed.
 
 ## Repository layout
 
