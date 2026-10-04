@@ -8,7 +8,7 @@ bug (a combined "both are required" message even when only one field
 was actually blank).
 
 It happened again with the token itself (hotfix 2026-10-04): only two of the
-nine places a token is typed stripped it, so a stray space or line break from
+eight places a token is typed stripped it, so a stray space or line break from
 a copy-paste reached the HTTP header, and the HTTP library's error text - which
 contains the header VALUE - was stored and shown. `normalise_credentials()` is
 now the one place that cleans what the operator typed; every entry point calls
