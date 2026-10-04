@@ -154,13 +154,65 @@ def unwrap_list(data, extra_keys: tuple[str, ...] = ()) -> list:
     return data if isinstance(data, list) else []
 
 
+# Fixed on purpose. When a header value is not allowed (a leading space, a line break, a character outside Latin-1)
+# the HTTP library's own error text IS the header value - here, the API token - and this wrapper used to copy that
+# text into NetskopeApiError, which the operations then stored (jobs.error_message, job_items.message) and showed
+# (hotfix 2026-10-04). So that text is never copied, and never chained to the new error (`from None`), because the
+# job manager prints the full traceback, chain included. Errors whose text is worth keeping (a certificate problem
+# names the certificate) are copied with any credential removed, and chained to a scrubbed copy (_scrubbed_copy).
+INVALID_TOKEN_MESSAGE = (
+    "The API token could not be sent to Netskope: it contains a line break, a leading space or another character "
+    "that is not allowed in an HTTP header. Enter it again, copying only the token itself."
+)
+
+
+def _secret_forms(token: str, sent: dict) -> list[str]:
+    """Everything that must never be copied into an error message, longest first: the token as typed and stripped,
+    every credential header value that was sent (and the part after `Bearer `), each also the way `repr()` writes it
+    (a line break becomes backslash-n)."""
+    raw = {token, token.strip()}
+    for name, value in sent.items():
+        if isinstance(value, str) and name.lower() not in ("content-type", "accept"):
+            raw.update((value, value.strip()))
+            if value.lower().startswith("bearer "):
+                raw.add(value[7:].strip())
+    forms = set()
+    for secret in raw:
+        if len(secret) >= 4:
+            forms.update((secret, repr(secret)[1:-1]))
+    return sorted(forms, key=len, reverse=True)
+
+
+def _without_secrets(exc: Exception, token: str, sent: dict) -> str:
+    """The exception's text with any credential in it removed - for the library errors whose text is kept because it
+    is useful (a certificate problem names the certificate) but that could still carry a header."""
+    text = str(exc)
+    for form in _secret_forms(token, sent):
+        text = text.replace(form, "[removed]")
+    return text
+
+
+def _scrubbed_copy(exc: Exception, token: str, sent: dict) -> Exception:
+    """The exception rebuilt with credentials removed from its text. It is what the new error is chained to: the SAME
+    class, because the NPA export classifies a failure by the type of its cause (timeout, certificate, other), but
+    nothing a printed traceback chain shows can carry a header."""
+    text = _without_secrets(exc, token, sent)
+    try:
+        return type(exc)(text)
+    except Exception:
+        return requests.exceptions.RequestException(text)
+
+
 def request(
     method: str, url: str, token: str, action: str, *, headers_override: dict | None = None, **kwargs
 ) -> requests.Response:
+    sent = headers_override or headers(token)
     try:
-        return requests.request(method, url, headers=headers_override or headers(token), timeout=TIMEOUT, **kwargs)
+        return requests.request(method, url, headers=sent, timeout=TIMEOUT, **kwargs)
+    except requests.exceptions.InvalidHeader:                       # before RequestException: it is one, and so is a ValueError
+        raise NetskopeApiError(INVALID_TOKEN_MESSAGE) from None
     except requests.exceptions.SSLError as exc:
-        raise NetskopeApiError(f"TLS certificate problem while {action}: {exc}") from exc
+        raise NetskopeApiError(f"TLS certificate problem while {action}: {_without_secrets(exc, token, sent)}") from _scrubbed_copy(exc, token, sent)
     except requests.exceptions.ConnectionError as exc:
         raise NetskopeApiError(
             f"Could not reach the tenant while {action} - check the tenant name and network connectivity."
@@ -168,4 +220,6 @@ def request(
     except requests.exceptions.Timeout as exc:
         raise NetskopeApiError(f"Timed out while {action} - the tenant may be unreachable.") from exc
     except requests.exceptions.RequestException as exc:
-        raise NetskopeApiError(f"Request failed while {action}: {exc}") from exc
+        raise NetskopeApiError(f"Request failed while {action}: {_without_secrets(exc, token, sent)}") from _scrubbed_copy(exc, token, sent)
+    except ValueError:                                              # not a `requests` error: http.client or the codec refusing a header
+        raise NetskopeApiError(INVALID_TOKEN_MESSAGE) from None
