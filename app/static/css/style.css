@@ -1073,3 +1073,240 @@ main.dashboard-shell { max-width: none; padding: 0; }
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
   overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
 }
+
+/* ===== Data Export (2026-10-04 redesign) ====================================
+   The Data Export pages only: the hub, the "Users per NPA policy" policy list,
+   preview, progress and result. Every selector in this section carries a `de-`
+   class (`.de-page` on <main>, via each template's `main_class` block), so
+   nothing here can reach the dashboard, Admin, Help or another operation, and no
+   rule above this section was edited. tests/test_data_export_redesign.py pins
+   both facts: it fails on a selector without a `de-` class and on any change to
+   the file above this marker.
+
+   Same tokens, same font, same component language as the rest of the app:
+   white cards on --bg, 1px --border hairlines, 10px radius, navy for structure
+   and "in progress", the one orange for the one primary action, --status-*
+   tints (always beside a word) for state. Two scoped custom properties are new,
+   both for contrast (WCAG AA, 4.5:1 for normal text):
+     --de-on-accent  white on --color-accent measures 3.35:1, navy on it 4.72:1
+                     (5.65:1 on the lighter hover orange); the orange itself is
+                     unchanged, only the label colour on it is.
+     --de-link       the accent as text is 3.35:1 on white and 3.13:1 on --bg;
+                     this darker shade of the same hue is 5.18:1 and 4.85:1. It
+                     is for text links only, never on the tinted callout (4.37:1).
+   --bg is NOT usable in this section: the comment above the legacy aliases in :root has a stray comment terminator in the
+   middle of it (where it names the colour and status token families), which ends the comment early and swallows the next
+   declaration, --bg, so the page background is really white. That shared bug is left alone here (fixing it would repaint
+   every page); the one place that needs the page colour falls back to --surface.
+   No gradient, no entrance animation, no drop shadow; the only transitions are
+   state changes, and only when the visitor has not asked for reduced motion. */
+
+.container.de-page { max-width: 1040px; padding: 1.5rem 16px 3rem; }
+.de-page {
+  --de-on-accent: #0E2148;
+  --de-link: #A9570C;
+  --de-ring: #0E2148;
+  /* = --text-subtle: 3.4:1 on white and 3.2:1 on --bg, the 3:1 a form control's edge needs */
+  --de-control-border: #8A8A9A;
+  --de-radius: 10px;
+}
+
+/* ---------- header: title and subtitle left, tenant pill and step right ---------- */
+.de-header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 0.75rem 1.5rem; margin-bottom: 1.25rem; }
+.de-header-main { flex: 1 1 20rem; min-width: 0; }
+.de-header h1 { margin: 0 0 0.25rem; }
+.de-subtitle { margin: 0; color: var(--text-muted); font-size: 0.95rem; }
+.de-context { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.9rem; max-width: 100%; }
+.de-pill { display: inline-flex; align-items: baseline; gap: 0.45rem; max-width: 100%; padding: 0.3rem 0.8rem; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); font-size: 0.85rem; }
+.de-pill-label { color: var(--text-muted); font-size: 0.78rem; }
+.de-pill-value { min-width: 0; font-weight: 700; color: var(--color-bg-dark); overflow-wrap: anywhere; }
+.de-step { color: var(--text-muted); font-size: 0.85rem; font-weight: 700; white-space: nowrap; }
+
+/* ---------- the sensitivity notice: distinct, not alarming (info tint, not amber or red) ---------- */
+.de-callout { display: flex; align-items: flex-start; gap: 0.75rem; margin: 0 0 1.25rem; padding: 0.75rem 1rem; background: var(--status-info-bg); border: 1px solid rgba(14, 33, 72, 0.18); border-radius: var(--de-radius); color: var(--color-bg-dark); font-size: 0.88rem; line-height: 1.5; }
+.de-callout p { margin: 0; }
+.de-callout-icon { flex: none; display: inline-flex; margin-top: 0.1rem; }
+.de-callout-icon .ti-icon { width: 1.15rem; height: 1.15rem; }
+
+/* ---------- the three cards: equal height, one anatomy, the button pinned to the bottom ----------
+   Flex first (works everywhere); where subgrid exists the icon/title, sentence and "You get" rows also line up
+   horizontally across the three cards. One column below 1100px of window width, not 900px: the 220px sidebar sits
+   beside the page, so at 901px each of three cards would get only ~217px (titles on four lines, buttons wrapping);
+   at 1101px each gets ~272px. */
+.de-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: stretch; margin: 0 0 1rem; }
+.de-grid .op-card { display: flex; flex-direction: column; min-width: 0; padding: 1.25rem; border-radius: var(--de-radius); }
+@media (min-width: 1101px) {
+  @supports (grid-template-rows: subgrid) {
+    .de-grid { row-gap: 0; }
+    .de-grid .op-card { display: grid; grid-template-rows: subgrid; grid-row: span 4; row-gap: 0; }
+  }
+}
+@media (max-width: 1100px) {
+  .de-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+.de-card-head { display: flex; align-items: center; gap: 0.7rem; min-width: 0; margin-bottom: 0.8rem; }
+.de-card-icon { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 2.25rem; height: 2.25rem; border: 1px solid var(--border); border-radius: 8px; background: var(--color-surface-alt); color: var(--color-accent); }
+.de-card-icon .ti-icon { width: 1.15rem; height: 1.15rem; }
+.de-card-head h2 { margin: 0; min-width: 0; font-size: 1rem; color: var(--color-bg-dark); overflow-wrap: anywhere; }
+.de-new { flex: none; margin-left: auto; padding: 0.1rem 0.55rem; border-radius: 999px; background: var(--color-bg-dark); color: #fff; font-size: 0.72rem; font-weight: 700; }
+.de-card-desc { margin: 0 0 1rem; line-height: 1.5; }
+
+.de-gets, .de-options, .de-scopes { padding-top: 0.8rem; border-top: 1px solid var(--border); }
+.de-scopes { margin-bottom: 0.25rem; }
+.de-gets { margin-bottom: 0.9rem; }
+.de-row-label { display: block; margin-bottom: 0.45rem; color: var(--text-muted); font-size: 0.78rem; font-weight: 700; }
+.de-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0; padding: 0; list-style: none; }
+.de-chip { padding: 0.2rem 0.65rem; border-radius: 999px; background: var(--status-info-bg); color: var(--status-info-text); font-size: 0.8rem; font-weight: 700; }
+.de-scope { padding: 0.15rem 0.6rem; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); color: var(--text-muted); font-size: 0.8rem; }
+.de-grid .de-scope-note { margin: 0.5rem 0 0; font-size: 0.8rem; }
+
+.de-card-form { flex: 1 1 auto; display: flex; flex-direction: column; gap: 0.9rem; min-height: 0; }
+.de-card-foot { flex: 1 1 auto; display: flex; flex-direction: column; gap: 0.9rem; }
+.de-card-foot .de-btn-primary { margin-top: auto; }
+
+/* ---------- "Include deleted accounts": still the same checkbox, drawn as a toggle ---------- */
+.de-toggle { display: flex; align-items: center; gap: 0.65rem; color: var(--text); font-size: 0.92rem; font-weight: 700; cursor: pointer; }
+.de-toggle input { appearance: none; -webkit-appearance: none; position: relative; flex: none; width: 2.6rem; height: 1.5rem; margin: 0; border: 2px solid var(--text-muted); border-radius: 999px; background: var(--surface); cursor: pointer; }
+.de-toggle input::before { content: ""; position: absolute; top: 50%; left: 2px; width: 0.9rem; height: 0.9rem; border-radius: 50%; background: var(--text-muted); transform: translateY(-50%); }
+.de-toggle input:checked { border-color: var(--color-bg-dark); background: var(--color-bg-dark); }
+.de-toggle input:checked::before { left: calc(100% - 0.9rem - 2px); background: #fff; }
+.de-grid .de-toggle-help { margin: 0.5rem 0 0; font-size: 0.8rem; line-height: 1.45; }
+@media (forced-colors: active) {
+  .de-toggle input:checked { background: Highlight; border-color: Highlight; }
+  .de-toggle input::before { background: CanvasText; }
+  .de-toggle input:checked::before { background: HighlightText; }
+}
+
+/* ---------- the primary action: the accent, navy label, clear hover / focus / disabled ---------- */
+.de-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem; width: 100%; min-height: 2.75rem; padding: 0.55rem 1rem; border: 1px solid transparent; border-radius: 8px; background: var(--color-accent); color: var(--de-on-accent); font: inherit; font-size: 0.95rem; font-weight: 700; line-height: 1.2; text-align: center; text-decoration: none; cursor: pointer; }
+.de-btn-primary:hover { background: var(--brand-hover); }
+.de-btn-primary:active { background: var(--color-accent); }
+.de-btn-primary:disabled { border-color: var(--border); background: var(--border); color: var(--text-muted); cursor: not-allowed; }
+.de-btn-lg { min-width: 13rem; min-height: 3.25rem; padding: 0.75rem 1.75rem; font-size: 1.05rem; }
+.de-btn-count { font-weight: 700; }
+@media (prefers-reduced-motion: no-preference) {
+  .de-btn-primary, .de-toggle input, .de-toggle input::before, .de-policy-list .publisher-row { transition: background-color 0.12s ease, border-color 0.12s ease, left 0.12s ease; }
+}
+@media (forced-colors: active) {
+  .de-btn-primary { border-color: ButtonText; }
+  .de-btn-primary:disabled { border-color: GrayText; color: GrayText; }
+}
+
+/* ---------- links, disclosures and keyboard focus (one visible ring everywhere on these pages) ---------- */
+.de-page a { color: var(--de-link); }
+.de-page a:hover { color: var(--de-link); text-decoration: underline; }
+.de-page a.de-btn-primary, .de-page a.de-btn-primary:hover { color: var(--de-on-accent); text-decoration: none; }
+.de-page :focus-visible { outline: 3px solid var(--de-ring); outline-offset: 2px; }
+
+.de-note { display: flex; align-items: flex-start; gap: 0.5rem; margin: 0 0 1.25rem; color: var(--text-muted); font-size: 0.85rem; }
+.de-note-icon { flex: none; display: inline-flex; margin-top: 0.1rem; color: var(--color-bg-dark); }
+.de-note-icon .ti-icon { width: 1rem; height: 1rem; }
+
+.de-details { margin: 0 0 0.75rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+.de-details > summary { padding: 0.65rem 1rem; color: var(--color-bg-dark); font-size: 0.9rem; font-weight: 700; }
+.de-details[open] > summary { margin-bottom: 0.75rem; border-bottom: 1px solid var(--border); }
+.de-details > p, .de-details > ul { margin: 0 1rem 0.9rem; color: var(--text-muted); font-size: 0.88rem; line-height: 1.5; }
+
+/* ---------- tiles: a number and a word, tinted by status, never colour alone ---------- */
+.de-tiles { display: grid; gap: 12px; margin: 0 0 1rem; padding: 0; }
+.de-tiles--pair { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 30rem; }
+.de-tiles--status { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.de-tile { margin: 0; padding: 0.85rem 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--de-radius); }
+.de-tile dt { margin: 0 0 0.2rem; color: var(--text-muted); font-size: 0.82rem; font-weight: 700; }
+.de-tile dd { margin: 0; }
+.de-tile dd:first-of-type { color: var(--color-bg-dark); font-size: 1.75rem; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.de-tile .de-tile-note { margin-top: 0.3rem; color: var(--text-muted); font-size: 0.8rem; }
+.de-tile--ok { background: var(--status-success-bg); border-color: transparent; }
+.de-tile--ok dt, .de-tile--ok dd { color: var(--status-success-text); }
+.de-tile--empty { background: var(--status-neutral-bg); border-color: transparent; }
+.de-tile--empty dt, .de-tile--empty dd { color: var(--status-neutral-text); }
+.de-tile--unresolved { background: var(--status-warning-bg); border-color: transparent; }
+.de-tile--unresolved dt, .de-tile--unresolved dd { color: var(--status-warning-text); }
+.de-tile--all-users { background: var(--status-info-bg); border-color: transparent; }
+.de-tile--all-users dt, .de-tile--all-users dd { color: var(--status-info-text); }
+/* a status with no rows reads as plain, not as a finding */
+.de-tile--zero { background: var(--surface); border-color: var(--border); }
+.de-tile--zero dt, .de-tile--zero dd { color: var(--text-muted); }
+@media (max-width: 720px) {
+  .de-tiles--status { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+.de-facts { max-width: 40rem; margin: 0 0 1.25rem; padding: 0; }
+.de-facts div { display: flex; justify-content: space-between; gap: 1rem; padding: 0.55rem 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+.de-facts dt { color: var(--text-muted); }
+.de-facts dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
+.de-what { max-width: 62ch; margin: 0 0 1rem; font-size: 0.95rem; line-height: 1.55; }
+.de-actions { margin: 1.25rem 0 0; }
+.de-actions .de-btn-primary { width: auto; min-width: 12rem; }
+
+/* ---------- the policy list: sticky toolbar, a grid of rows, sticky action bar ---------- */
+.de-form { margin: 0; }
+.de-toolbar { position: sticky; top: 0; z-index: 5; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 0.5rem 1rem; margin-bottom: 0.6rem; padding: 0.7rem 0 0.6rem; background: var(--bg, var(--surface)); border-bottom: 1px solid var(--border); }
+.de-search { position: relative; grid-column: 1 / -1; }
+.de-search-icon { position: absolute; top: 50%; left: 0.8rem; display: inline-flex; color: var(--text-muted); transform: translateY(-50%); pointer-events: none; }
+.de-search-icon .ti-icon { width: 1.1rem; height: 1.1rem; }
+.de-search input[type="search"] { box-sizing: border-box; width: 100%; min-height: 2.6rem; padding: 0.55rem 0.9rem 0.55rem 2.5rem; border: 1px solid var(--de-control-border); border-radius: 8px; background: var(--surface); color: var(--text); font: inherit; font-size: 0.95rem; }
+.de-toolbar label.select-all-row { margin: 0; }
+.de-select-text { min-width: 0; }
+.de-summary { margin: 0; justify-self: end; color: var(--text); font-size: 0.88rem; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+.de-summary-hidden { color: var(--text-muted); font-weight: 500; }
+
+.de-policy-list { gap: 0.5rem; margin: 0 0 0.6rem; }
+.de-policy-list .publisher-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; column-gap: 0.9rem; padding: 0.7rem 0.9rem; border-radius: 8px; font-size: 0.95rem; }
+.de-policy-list .publisher-row:hover { background: var(--color-surface-alt); }
+.de-policy-list .publisher-row:has(input:checked) { background: var(--status-info-bg); border-color: rgba(14, 33, 72, 0.35); }
+.de-policy-main { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.1rem 0.6rem; min-width: 0; }
+.de-policy-main .publisher-name { flex: none; max-width: 100%; overflow-wrap: anywhere; font-size: 0.95rem; }
+/* counts are right-aligned in fixed cells, so the numbers read as columns down the list */
+.de-counts { display: grid; grid-template-columns: 7.5rem 5.5rem 3.5rem; column-gap: 0.4rem; justify-items: end; color: var(--text-muted); font-size: 0.85rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.de-badges { display: grid; grid-template-columns: 8rem 6.5rem; gap: 0.4rem; justify-items: start; }
+.de-badges .status-badge { border: 1px solid transparent; white-space: nowrap; }
+/* allow keeps a hairline: on a ticked row (also the info tint) the pill would otherwise vanish into the row */
+.de-action--allow { background: var(--status-info-bg); color: var(--status-info-text); border-color: rgba(14, 33, 72, 0.25); }
+.de-action--block { background: var(--status-danger-bg); color: var(--status-danger-text); }
+.de-action--other { background: var(--status-neutral-bg); color: var(--status-neutral-text); }
+@media (max-width: 1100px) {
+  .de-policy-list .publisher-row { grid-template-columns: auto minmax(0, 1fr); align-items: start; row-gap: 0.4rem; }
+  .de-policy-list .publisher-row > input { grid-row: 1 / span 3; margin-top: 0.15rem; }
+  .de-counts, .de-badges { grid-column: 2; justify-items: start; }
+  .de-counts { grid-template-columns: repeat(3, max-content); column-gap: 0.9rem; }
+  .de-badges { grid-template-columns: repeat(2, max-content); }
+}
+
+.de-actionbar { position: sticky; bottom: 0; z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-top: 1rem; padding: 0.75rem 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--de-radius); box-shadow: 0 -6px 12px -6px rgba(14, 33, 72, 0.18); }
+.de-bar-hint { margin: 0; color: var(--text-muted); font-size: 0.88rem; }
+.de-actionbar .de-btn-primary { width: auto; min-width: 11rem; }
+@media (max-width: 600px) {
+  .de-actionbar { flex-direction: column; align-items: stretch; gap: 0.6rem; }
+  .de-actionbar .de-btn-primary { width: 100%; }
+}
+
+/* ---------- progress and result ---------- */
+.de-progress-card { margin: 0 0 1.25rem; padding: 1.1rem 1.25rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--de-radius); }
+.de-progress-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem 1rem; margin-bottom: 0.8rem; }
+.de-progress-head h2 { margin: 0; font-size: 1.05rem; color: var(--color-bg-dark); }
+.de-status { margin: 0; color: var(--text-muted); font-size: 0.88rem; }
+/* the native <progress>, in the app's navy instead of the browser's blue (job-poll.js drives .value and .max) */
+.de-progress { display: block; width: 100%; height: 0.7rem; border: 0; border-radius: 999px; background: var(--status-info-bg); overflow: hidden; appearance: none; -webkit-appearance: none; }
+.de-progress::-webkit-progress-bar { border-radius: 999px; background: var(--status-info-bg); }
+.de-progress::-webkit-progress-value { border-radius: 999px; background: var(--color-bg-dark); }
+.de-progress::-moz-progress-bar { border-radius: 999px; background: var(--color-bg-dark); }
+.de-progress-counts { margin: 0.6rem 0 0; font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+.de-calm { margin: 0.5rem 0 0; color: var(--text-muted); font-size: 0.88rem; }
+
+.de-page .warnings-block { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; column-gap: 0.7rem; margin: 0 0 1rem; }
+.de-page .warnings-block .de-warn-icon { grid-row: 1 / span 2; display: inline-flex; margin-top: 0.1rem; }
+.de-warn-icon .ti-icon { width: 1.15rem; height: 1.15rem; }
+.de-page .warnings-block ul { grid-column: 2; }
+
+.de-download { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1.25rem; margin: 0 0 1.25rem; padding: 1.1rem 1.25rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--de-radius); }
+.de-download .de-btn-primary { width: auto; }
+.de-download-file { margin: 0; font-size: 0.9rem; overflow-wrap: anywhere; }
+.de-file { font-weight: 700; }
+.de-download-note { display: flex; flex: 1 1 100%; align-items: flex-start; gap: 0.5rem; margin: 0; color: var(--text-muted); font-size: 0.85rem; }
+
+.de-h2 { margin: 1.5rem 0 0.6rem; color: var(--color-bg-dark); font-size: 1rem; }
+.de-table { max-width: 40rem; }
+.de-table th, .de-table td { white-space: normal; }
+.de-audit { margin: 1rem 0 0; font-size: 0.88rem; }

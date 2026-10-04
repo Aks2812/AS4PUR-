@@ -109,12 +109,12 @@ def _clean(entry, text) -> str:
 # Pages
 # --------------------------------------------------------------------------
 
-def _select_page(request, held, *, selected=(), error=None, status_code=200):
+def _select_page(request, held, tenant, *, selected=(), error=None, status_code=200):
     views = sorted(held["views"], key=lambda v: (v.name.lower(), v.rule_id))
     return _no_store(templates.TemplateResponse(
         request, "operations/data_export/npa_select.html",
         {
-            "action": f"{NPA}/preview", "csrf_token": get_csrf_token(request), "views": views,
+            "tenant": tenant, "action": f"{NPA}/preview", "csrf_token": get_csrf_token(request), "views": views,
             "declared_total": held["declared_total"], "selected": set(selected), "error": error, "back_url": f"{ROOT}/exporters",
         },
         status_code=status_code,
@@ -164,7 +164,7 @@ def npa_load_policies(request: Request, user: User = Depends(require_login), csr
         )
     held = {"views": npa_service.policy_views(fetched.rules), "declared_total": fetched.declared_total, "at": time.monotonic()}
     entry.data["npa_rules"] = held
-    return _select_page(request, held)
+    return _select_page(request, held, entry.tenant)
 
 
 @router.get(f"{_PATH}/policies")
@@ -176,7 +176,7 @@ def npa_show_policies(request: Request, user: User = Depends(require_login)):
     held = _held_rules(entry)
     if held is None:
         return _expired_list_page(request, entry)
-    return _select_page(request, held)
+    return _select_page(request, held, entry.tenant)
 
 
 # --------------------------------------------------------------------------
@@ -194,11 +194,11 @@ def npa_preview(request: Request, user: User = Depends(require_login), csrf_toke
         return _expired_list_page(request, entry)
     selected, error = _selection(held, rule_id)
     if error:
-        return _select_page(request, held, selected=rule_id, error=error, status_code=400)
+        return _select_page(request, held, entry.tenant, selected=rule_id, error=error, status_code=400)
     return _no_store(templates.TemplateResponse(
         request, "operations/data_export/npa_preview.html",
         {
-            "action": f"{NPA}/start", "csrf_token": get_csrf_token(request), "selected": selected,
+            "tenant": entry.tenant, "action": f"{NPA}/start", "csrf_token": get_csrf_token(request), "selected": selected,
             "preview": npa_service.preview(selected), "max_calls": npa_client.MAX_API_CALLS, "max_rows": npa_service.MAX_ROWS,
             "back_url": f"{NPA}/policies",
         },
@@ -241,9 +241,9 @@ def npa_start(
         return _expired_list_page(request, entry)
     selected, error = _selection(held, rule_id)
     if error:
-        return _select_page(request, held, selected=rule_id, error=error, status_code=400)
+        return _select_page(request, held, entry.tenant, selected=rule_id, error=error, status_code=400)
     if entry.data.get("npa_running_job"):
-        return _select_page(request, held, selected=rule_id, error="An export is already running for this session. Wait for it to finish.", status_code=409)
+        return _select_page(request, held, entry.tenant, selected=rule_id, error="An export is already running for this session. Wait for it to finish.", status_code=409)
 
     entry.data.pop("npa_result", None)                       # an older export must not stay downloadable beside a newer one
     job = create_job(db, job_type=npa_service.JOB_TYPE, tenant=entry.tenant, created_by_username=user.username)
@@ -265,6 +265,7 @@ def npa_run(job_id: str, request: Request, user: User = Depends(require_login), 
     return _no_store(templates.TemplateResponse(
         request, "operations/data_export/npa_run.html",
         {
+            "tenant": job.tenant,                       # the run's own tenant (the job row has always recorded it), not whatever the session holds now
             "job": job, "state": job.status.value, "held": held, "error_text": _clean(entry, message),
             "download_href": f"{NPA}/download/{job_id}", "ttl_minutes": RESULT_TTL_SECONDS // 60,
             "back_url": f"{ROOT}/exporters",

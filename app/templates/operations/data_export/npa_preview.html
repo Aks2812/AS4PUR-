@@ -1,35 +1,41 @@
 {% extends "base.html" %}
+{% import "operations/data_export/_components.html" as de %}
 {% block title %}Data Export — {{ app_name }}{% endblock %}
+{% block main_class %}container de-page{% endblock %}
 {% block content %}
-<h1>Data Export</h1>
-<p class="step-indicator">Users per NPA policy &middot; Step 2 of 2 &middot; Check, then start</p>
+{{ de.header("Users per NPA policy. Check what the export will do, then start it.", "Step 2 of 2", tenant=tenant, step_label="Users per NPA policy, step 2 of 2: check, then start") }}
 
-<h2>What the export will do</h2>
-<div class="table-scroll">
-<table class="data-table">
-  <tbody>
-    <tr><th scope="row">Policies selected</th><td>{{ preview.policies }}</td></tr>
-    <tr><th scope="row">Groups to expand</th><td>{{ preview.groups_to_expand }}</td></tr>
-    <tr><th scope="row">Direct users listed in those policies</th><td>{{ preview.direct_users }}</td></tr>
-    <tr><th scope="row">Organizational units listed</th><td>{{ preview.ous }}</td></tr>
-    <tr><th scope="row">Policies with no user or group restriction</th><td>{{ preview.all_users_policies }}</td></tr>
-  </tbody>
-</table>
-</div>
+<dl class="de-tiles de-tiles--pair">
+  <div class="de-tile"><dt>Policies selected</dt><dd>{{ preview.policies }}</dd></div>
+  <div class="de-tile"><dt>Groups to expand</dt><dd>{{ preview.groups_to_expand }}</dd><dd class="de-tile-note">each group counted once</dd></div>
+</dl>
 
-<p class="hint">No Netskope call has been made for the expansion yet. Starting it reads the tenant's users once (about one request per 200 users, only if a group is involved), then looks up each group by name and reads its members, and builds the file in memory. A policy with no users, groups or units is listed once as ALL_USERS and is not expanded; organizational units are listed, not expanded. A group that cannot be resolved appears as an UNRESOLVED row with the reason; a group that exists but has no members appears as an EMPTY row. One export is limited to {{ max_calls }} API calls and {{ max_rows }} rows.</p>
+<dl class="de-facts">
+  <div><dt>Direct users listed in those policies</dt><dd>{{ preview.direct_users }}</dd></div>
+  <div><dt>Organizational units listed</dt><dd>{{ preview.ous }}</dd></div>
+  <div><dt>Policies with no user or group restriction</dt><dd>{{ preview.all_users_policies }}</dd></div>
+</dl>
 
-<details>
+<p class="de-what">No Netskope call has been made for the expansion yet. Starting it reads the tenant's users once (about one request per 200 users, only if a group is involved), looks up each group by name and reads its members, then builds the file in memory. Nothing is changed on the tenant.</p>
+
+<details class="de-details">
+  <summary>How rows are written</summary>
+  <p>A policy with no users, groups or units is listed once as ALL_USERS and is not expanded; organizational units are listed, not expanded. A group that cannot be resolved appears as an UNRESOLVED row with the reason; a group that exists but has no members appears as an EMPTY row. One export is limited to {{ max_calls }} API calls and {{ max_rows }} rows.</p>
+</details>
+
+<details class="de-details">
   <summary>The {{ selected|length }} selected polic{{ "y" if selected|length == 1 else "ies" }}</summary>
   <ul>
     {% for v in selected %}<li>{{ v.name or "(unnamed policy)" }} <span class="hint">(id {{ v.rule_id }}, {{ v.action }})</span></li>{% endfor %}
   </ul>
 </details>
 
-<form method="post" action="{{ action }}" class="stacked-form">
+<form method="post" action="{{ action }}" class="de-form">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   {% for v in selected %}<input type="hidden" name="rule_id" value="{{ v.rule_id }}">{% endfor %}
-  <button type="submit">Start export</button>
+  <div class="de-actions">
+    <button type="submit" class="de-btn-primary">Start export</button>
+  </div>
 </form>
 
 {% include "partials/back_link.html" %}

@@ -355,6 +355,8 @@ def run_npa_users_export(tenant: str, token: str, views, progress, now: datetime
 
     unresolved_rows = sum(1 for r in rows if r[STATUS_COLUMN] == UNRESOLVED)
     empty_rows = sum(1 for r in rows if r[STATUS_COLUMN] == EMPTY)
+    ok_rows = sum(1 for r in rows if r[STATUS_COLUMN] == OK)                       # display only: the result page's status tiles
+    all_users_rows = sum(1 for r in rows if r[STATUS_COLUMN] == ALL_USERS)
     unresolved_groups = [e for e in expansions.values() if e.status == UNRESOLVED]
     empty_groups = [e for e in expansions.values() if e.status == OK and not e.members]
     warnings: list[str] = []
@@ -394,6 +396,8 @@ def run_npa_users_export(tenant: str, token: str, views, progress, now: datetime
         "rows": len(rows),
         "unresolved_rows": unresolved_rows,
         "empty_rows": empty_rows,
+        "ok_rows": ok_rows,
+        "all_users_rows": all_users_rows,
         "directory_users": directory.users_total if directory is not None else None,
         "api_calls": budget.used,
     }
