@@ -29,7 +29,7 @@ from ...security.csrf import get_csrf_token, verify_csrf
 from ...templating import templates
 from ...uploads import UploadRejected, delete_upload, format_size, save_upload
 from ..credential_cache import FlowCollisionError, credential_cache
-from ..validation import tenant_token_error_message
+from ..validation import clean_tenant_token, normalise_credentials, tenant_token_error_message
 from ..wizard_expired import wizard_expired_response
 from . import service
 from .netskope_client import NetskopeApiError, fetch_classification_rules, fetch_client_status, render_condition_tree, rules_for_os
@@ -87,9 +87,7 @@ def submit_tenant(
     csrf_token: str = Form(...),
 ):
     verify_csrf(request, csrf_token)
-    tenant = tenant.strip()
-
-    field_error = tenant_token_error_message(tenant, token)
+    tenant, token, field_error = clean_tenant_token(tenant, token)
     if field_error:
         return templates.TemplateResponse(
             request,
@@ -308,8 +306,9 @@ def _analyse_upload(upload_path, filename: str, tenant: str, token: str) -> tupl
     # is never fatal to the primary log-only report built above - it's
     # rendered as its own side panel, `report` itself is never touched.
     rule_cross_reference = None
-    if tenant or token:
-        field_error = tenant_token_error_message(tenant, token)
+    tenant, token, field_error = normalise_credentials(tenant, token)         # strips; refuses a control character
+    if field_error or tenant or token:
+        field_error = field_error or tenant_token_error_message(tenant, token)
         if field_error:
             rule_cross_reference = {
                 "attempted": True,
@@ -369,7 +368,7 @@ async def submit_nsdebug_upload(
     # they finished, so both go to a worker thread. (`save_upload` above has
     # to stay on the loop: it reads the upload with `await`.)
     report, rule_cross_reference = await run_in_threadpool(
-        _analyse_upload, upload_path, file.filename or "nsdebug.log", tenant.strip(), token.strip()
+        _analyse_upload, upload_path, file.filename or "nsdebug.log", tenant, token
     )
 
     return templates.TemplateResponse(

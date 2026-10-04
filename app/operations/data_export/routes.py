@@ -44,7 +44,7 @@ from ...security.csrf import get_csrf_token, verify_csrf
 from ...templating import templates
 from ..credential_cache import FlowCollisionError, credential_cache
 from ..netskope_http import NetskopeApiError
-from ..validation import tenant_token_error_message
+from ..validation import clean_tenant_token
 from ..wizard_expired import wizard_expired_response
 from . import service
 from .netskope_client import ExportIncompleteError
@@ -162,9 +162,7 @@ def submit_tenant(
     csrf_token: str = Form(default=""),
 ):
     verify_csrf(request, csrf_token)
-    tenant = tenant.strip()
-
-    field_error = tenant_token_error_message(tenant, token)
+    tenant, token, field_error = clean_tenant_token(tenant, token)
     if field_error:
         return _tenant_page(request, error=field_error, tenant_value=tenant, status_code=400)
 

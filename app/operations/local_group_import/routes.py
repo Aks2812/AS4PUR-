@@ -32,7 +32,7 @@ from ...security.csrf import get_csrf_token, verify_csrf
 from ...templating import templates
 from ...uploads import delete_upload, save_upload
 from ..credential_cache import FlowCollisionError, credential_cache
-from ..validation import tenant_token_error_message
+from ..validation import clean_tenant_token
 from ..wizard_expired import wizard_expired_response
 from . import service
 from .netskope_client import NetskopeApiError, fetch_groups
@@ -90,9 +90,7 @@ def submit_tenant(
     csrf_token: str = Form(...),
 ):
     verify_csrf(request, csrf_token)
-    tenant = tenant.strip()
-
-    field_error = tenant_token_error_message(tenant, token)
+    tenant, token, field_error = clean_tenant_token(tenant, token)
     if field_error:
         return templates.TemplateResponse(
             request,
