@@ -1,0 +1,38 @@
+{#
+  Small pieces shared by the Data Export pages (hub, policy picker, preview, progress, result):
+  the page header, the sensitivity callout and the info line. Imported with
+  `{% import "operations/data_export/_components.html" as de %}` - Jinja imports are not inherited through
+  `{% extends %}`, so each page imports it itself. Every argument is escaped on output; only `caller()` carries
+  markup, and that is the calling template's own literal text. Icons are the decorative inline SVGs from
+  partials/icons.html (aria-hidden), so nothing here needs a script, a font or an image.
+#}
+{% import "partials/icons.html" as icons %}
+
+{# Title, one-line subtitle, and on the right a compact context area: an optional "Tenant" pill and an optional step label (the run page has the pill but no step label: its card already states the state). #}
+{% macro header(subtitle, step=none, tenant=none, step_label=none) %}
+<header class="de-header">
+  <div class="de-header-main">
+    <h1>Data Export</h1>
+    <p class="de-subtitle">{{ subtitle }}</p>
+  </div>
+  {% if tenant or step %}
+  <div class="de-context">
+    {% if tenant %}<span class="de-pill"><span class="de-pill-label">Tenant</span> <span class="de-pill-value">{{ tenant }}</span></span>{% endif %}
+    {% if step %}<span class="de-step"{% if step_label %} aria-label="{{ step_label }}"{% endif %}>{{ step }}</span>{% endif %}
+  </div>
+  {% endif %}
+</header>
+{% endmacro %}
+
+{# The data-sensitivity notice: distinct from the page, not alarming (the app's navy-tint info palette, not amber or red). #}
+{% macro callout(lead) %}
+<div class="de-callout" role="note">
+  <span class="de-callout-icon">{{ icons.ti_icon("lock") }}</span>
+  <p><strong>{{ lead }}</strong> {{ caller() }}</p>
+</div>
+{% endmacro %}
+
+{# A quiet line with an info icon, for a fact worth knowing rather than a warning. #}
+{% macro note(text) %}
+<p class="de-note"><span class="de-note-icon">{{ icons.ti_icon("info") }}</span><span>{{ text }}</span></p>
+{% endmacro %}

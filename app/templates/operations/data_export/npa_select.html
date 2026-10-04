@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% import "operations/data_export/_components.html" as de %}
+{% import "partials/icons.html" as icons %}
+{% block title %}Data Export — {{ app_name }}{% endblock %}
+{% block main_class %}container de-page{% endblock %}
+{% block content %}
+{{ de.header("Users per NPA policy. Choose the policies to export.", "Step 1 of 2", tenant=tenant, step_label="Users per NPA policy, step 1 of 2: choose policies") }}
+
+{% if error %}<div class="alert alert-error" role="alert">{{ error }}</div>{% endif %}
+
+{% call de.callout("Handle the file as sensitive data.") %}It lists the email address of every user each chosen policy applies to. The file itself is never saved on this server: the finished file is held in memory for a few minutes, for your session only. The run is recorded in the audit history (who, when, tenant, counts), never its contents.{% endcall %}
+
+{% set count_line %}{{ views|length }} polic{{ "y" if views|length == 1 else "ies" }} read from the tenant. {% if declared_total is none %}The tenant did not report a total number of policies, so this list could not be checked for completeness; compare the count with the console before relying on it.{% else %}The count matches the total the tenant reports ({{ declared_total }}).{% endif %}{% endset %}
+{{ de.note(count_line) }}
+
+{% if not views %}
+<p>There are no NPA policies to export.</p>
+{% else %}
+<form method="post" action="{{ action }}" class="de-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <div class="de-toolbar">
+    <div class="de-search">
+      <span class="de-search-icon">{{ icons.ti_icon("search") }}</span>
+      <input type="search" data-filter-target="npa-policy-list" aria-label="Filter policies" placeholder="Filter by name, id, action, enabled or disabled...">
+    </div>
+    <label class="select-all-row">
+      <input type="checkbox" data-select-all-target="npa-policy-list">
+      <span class="de-select-text">Select all (<span data-select-all-count>0</span> shown)</span>
+    </label>
+    <p class="de-summary" role="status" aria-live="polite" data-selected-summary><span data-selected-n>{{ selected|length }}</span> of <span data-selected-m>{{ views|length }}</span> selected<span class="de-summary-hidden" data-selected-hidden hidden></span></p>
+  </div>
+  <div class="publisher-list de-policy-list" id="npa-policy-list" role="group" aria-label="Policies to export">
+    {% for v in views %}
+    {% set action_kind = "allow" if v.action == "allow" else ("block" if v.action == "block" else "other") %}
+    <label class="publisher-row rule-row">
+      <input type="checkbox" name="rule_id" value="{{ v.rule_id }}"{% if v.rule_id in selected %} checked{% endif %}>
+      <span class="de-policy-main">
+        <span class="publisher-name">{{ v.name or "(unnamed policy)" }}</span>
+        <span class="publisher-id">id {{ v.rule_id }}</span>
+      </span>
+      <span class="de-counts">
+        <span class="de-count">{{ v.users|length }} direct user{{ "" if v.users|length == 1 else "s" }}</span>
+        <span class="de-count">{{ v.groups|length }} group{{ "" if v.groups|length == 1 else "s" }}</span>
+        <span class="de-count de-count--ou">{% if v.ous %}{{ v.ous|length }} OU{{ "" if v.ous|length == 1 else "s" }}{% endif %}</span>
+      </span>
+      <span class="de-badges">
+        <span class="status-badge de-action de-action--{{ action_kind }}">{{ v.action }}</span>
+        <span class="status-badge status-{{ "active" if v.enabled == "true" else ("inactive" if v.enabled == "false" else "unavailable") }}" data-enabled="{{ v.enabled }}">{{ "enabled" if v.enabled == "true" else ("disabled" if v.enabled == "false" else "enabled: unknown") }}</span>
+      </span>
+    </label>
+    {% endfor %}
+  </div>
+  <p class="list-filter-empty" data-filter-empty hidden>No policies match that filter.</p>
+  <div class="de-actionbar">
+    <p class="de-bar-hint" data-bar-hint>Select at least one policy to continue.</p>
+    <button type="submit" class="de-btn-primary">Continue<span class="de-btn-count" data-selected-count>{% if selected %}({{ selected|length }}){% endif %}</span></button>
+  </div>
+</form>
+<script src="/static/js/list-filter.js"></script>
+<script src="/static/js/npa-select.js"></script>
+{% endif %}
+
+{% include "partials/back_link.html" %}
+{% endblock %}

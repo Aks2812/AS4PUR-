@@ -146,16 +146,26 @@ def _error_detail(resp) -> str:
     return " ".join(text.split())[:_MAX_DETAIL_CHARS]
 
 
+def _api_error(resp, message: str) -> NetskopeApiError:
+    """The NetskopeApiError these call sites have always raised - same message - with the HTTP status code (an
+    int) attached as `.status_code`. A caller that must not store or show Netskope's own error text (Users per
+    NPA policy) can then still say WHAT went wrong, from the status and not from the text."""
+    error = NetskopeApiError(message)
+    error.status_code = resp.status_code
+    return error
+
+
 def _raise_for_status(resp, what: str) -> None:
     if resp.status_code == 200:
         return
     if resp.status_code == 401:
-        raise NetskopeApiError("Token was rejected (HTTP 401) - it's likely wrong or expired.")
+        raise _api_error(resp, "Token was rejected (HTTP 401) - it's likely wrong or expired.")
     if resp.status_code == 403:
-        raise NetskopeApiError(f"Token was accepted but lacks the required scope (HTTP 403) to read {what}.")
+        raise _api_error(resp, f"Token was accepted but lacks the required scope (HTTP 403) to read {what}.")
     detail = _error_detail(resp)
-    raise NetskopeApiError(
-        f"Netskope rejected the request for {what} (HTTP {resp.status_code})" + (f": {detail}" if detail else ".")
+    raise _api_error(
+        resp,
+        f"Netskope rejected the request for {what} (HTTP {resp.status_code})" + (f": {detail}" if detail else "."),
     )
 
 
@@ -178,26 +188,30 @@ def _retry_wait(resp, attempt: int) -> float:
     return BACKOFF_BASE_SECONDS * (2 ** attempt)
 
 
-def _call(method: str, tenant: str, token: str, path: str, action: str, *, params=None, json_body=None, pacer: Pacer | None = None):
+def _call(method: str, tenant: str, token: str, path: str, action: str, *, params=None, json_body=None, pacer: Pacer | None = None, headers_override: dict | None = None):
+    """`headers_override` is for the one endpoint family with a different auth header (SCIM's
+    `Authorization: Bearer`); left None, every call is exactly what it was."""
     url = f"{base_url(tenant)}{path}"          # validates the tenant BEFORE anything is sent
     if pacer is not None:
         pacer.wait()
     attempt = 0
     while True:
-        resp = request(method, url, token, action, params=params, json=json_body)
+        resp = request(method, url, token, action, headers_override=headers_override, params=params, json=json_body)
         if resp.status_code != 429 and resp.status_code < 500:
             return resp
         detail = _error_detail(resp)
         if attempt >= MAX_RETRIES:
-            raise NetskopeApiError(
+            raise _api_error(
+                resp,
                 f"Netskope kept answering HTTP {resp.status_code} while {action} (gave up after {MAX_RETRIES} retries)"
-                + (f": {detail}" if detail else ".")
+                + (f": {detail}" if detail else "."),
             )
         wait = _retry_wait(resp, attempt)
         if wait > MAX_WAIT_SECONDS:
-            raise NetskopeApiError(
+            raise _api_error(
+                resp,
                 f"Netskope asked for a {int(wait)}-second wait (HTTP {resp.status_code}) while {action}, which is longer "
-                f"than this export will wait. Try again later."
+                f"than this export will wait. Try again later.",
             )
         _sleep(wait)
         attempt += 1

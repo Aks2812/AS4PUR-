@@ -24,6 +24,7 @@ _JOB_TYPE_LABELS = {
     "rtp_creation": "RTP creation",
     "rtp_add_users_to_rule": "RTP creation (add users to existing rule)",
     "local_group_import": "User provision",
+    "data_export_npa_users": "Data Export (users per NPA policy)",
 }
 
 

@@ -288,3 +288,8 @@ def download(kind: str, request: Request, user: User = Depends(require_login), d
         media_type=file.content_type,
         headers={"Content-Disposition": f'attachment; filename="{file.filename}"', "Cache-Control": "no-store"},
     )
+
+
+# The "Users per NPA policy" routes register themselves on this same router. Imported last because
+# npa_routes imports helpers from this module, which must be fully defined by then.
+from . import npa_routes  # noqa: E402,F401
