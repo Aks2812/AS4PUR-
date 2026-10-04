@@ -6,7 +6,7 @@
 
 {% if error %}<div class="alert alert-error" role="alert">{{ error }}</div>{% endif %}
 
-<p class="hint"><strong>Handle the files as sensitive data.</strong> They contain user identities (names, email addresses, group memberships) and internal network destinations. Nothing is saved on this server: a finished export stays available for a few minutes in memory only, for your session only.</p>
+<p class="hint"><strong>Handle the files as sensitive data.</strong> They contain user identities (names, email addresses, group memberships) and internal network destinations. The files themselves are never saved on this server: a finished export stays available for a few minutes in memory only, for your session only. Each run is recorded in the audit log (who, when, tenant, counts), never the file contents.</p>
 
 <div class="card-grid">
   <div class="op-card">
@@ -29,6 +29,15 @@
       <p class="hint">Off by default: only live accounts are exported. A user can have a deleted account next to a live one, so turning this on adds those rows.</p>
       <button type="submit">Export users &amp; groups</button>
     </form>
+  </div>
+  <div class="op-card">
+    <h2>Users per NPA policy</h2>
+    <p>One CSV of who each NPA policy you choose applies to: its direct users, the members of its groups (each group looked up by name and expanded), and its organizational units. You pick the policies first and see what will be done before it starts; it then runs in the background with a progress bar.</p>
+    <form method="post" action="/operations/data-export/npa-users/policies" class="stacked-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button type="submit">Choose policies</button>
+    </form>
+    <p class="hint">Needs a token that can read NPA policies, SCIM groups <em>and</em> users (the users are read only when a chosen policy uses a group).</p>
   </div>
 </div>
 <p class="hint">Large tenants can take up to a minute: users and groups are read a page at a time, deliberately paced to stay inside the tenant's rate limits.</p>

@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Data Export — {{ app_name }}{% endblock %}
+{% block content %}
+<h1>Data Export</h1>
+<p class="step-indicator">Users per NPA policy &middot; Step 1 of 2 &middot; Choose policies</p>
+
+{% if error %}<div class="alert alert-error" role="alert">{{ error }}</div>{% endif %}
+
+<p class="hint"><strong>Handle the file as sensitive data.</strong> It lists the email address of every user each chosen policy applies to. The file itself is never saved on this server: the finished file stays available for a few minutes in memory only, for your session only. The run is recorded in the audit history (who, when, tenant, counts), never its contents.</p>
+
+<p>
+  {{ views|length }} polic{{ "y" if views|length == 1 else "ies" }} read from the tenant.
+  {% if declared_total is none %}
+  The tenant did not report a total number of policies, so this list could not be checked for completeness; compare the count with the console before relying on it.
+  {% else %}
+  The count matches the total the tenant reports ({{ declared_total }}).
+  {% endif %}
+</p>
+
+{% if not views %}
+<p>There are no NPA policies to export.</p>
+{% else %}
+<form method="post" action="{{ action }}" class="stacked-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <fieldset>
+    <legend>Policies to export</legend>
+    <div class="list-filter">
+      <input type="search" data-filter-target="npa-policy-list" placeholder="Filter by name, id, action, enabled or disabled...">
+    </div>
+    <label class="select-all-row">
+      <input type="checkbox" data-select-all-target="npa-policy-list">
+      Select all (<span data-select-all-count>0</span> shown)
+    </label>
+    <div class="publisher-list" id="npa-policy-list">
+      {% for v in views %}
+      <label class="publisher-row rule-row">
+        <input type="checkbox" name="rule_id" value="{{ v.rule_id }}"{% if v.rule_id in selected %} checked{% endif %}>
+        <span class="rule-row-main">
+          <span class="rule-row-line1"><span class="publisher-name">{{ v.name or "(unnamed policy)" }}</span><span class="publisher-id">id {{ v.rule_id }}</span></span>
+          <span class="rule-row-line2">{{ v.users|length }} direct user{{ "" if v.users|length == 1 else "s" }} &middot; {{ v.groups|length }} group{{ "" if v.groups|length == 1 else "s" }}{% if v.ous %} &middot; {{ v.ous|length }} OU{{ "" if v.ous|length == 1 else "s" }}{% endif %}</span>
+        </span>
+        <span class="rule-row-meta"><span class="status-badge">{{ v.action }}</span><span class="status-badge status-{{ "active" if v.enabled == "true" else ("inactive" if v.enabled == "false" else "unavailable") }}" data-enabled="{{ v.enabled }}">{{ "enabled" if v.enabled == "true" else ("disabled" if v.enabled == "false" else "enabled: unknown") }}</span></span>
+      </label>
+      {% endfor %}
+    </div>
+    <p class="list-filter-empty" data-filter-empty hidden>No policies match that filter.</p>
+  </fieldset>
+  <button type="submit">Continue</button>
+</form>
+<script src="/static/js/list-filter.js"></script>
+{% endif %}
+
+{% include "partials/back_link.html" %}
+{% endblock %}

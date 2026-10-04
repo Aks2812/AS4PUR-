@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Data Export — {{ app_name }}{% endblock %}
+{% block content %}
+<h1>Data Export</h1>
+<p class="step-indicator">Users per NPA policy &middot; Step 2 of 2 &middot; Check, then start</p>
+
+<h2>What the export will do</h2>
+<div class="table-scroll">
+<table class="data-table">
+  <tbody>
+    <tr><th scope="row">Policies selected</th><td>{{ preview.policies }}</td></tr>
+    <tr><th scope="row">Groups to expand</th><td>{{ preview.groups_to_expand }}</td></tr>
+    <tr><th scope="row">Direct users listed in those policies</th><td>{{ preview.direct_users }}</td></tr>
+    <tr><th scope="row">Organizational units listed</th><td>{{ preview.ous }}</td></tr>
+    <tr><th scope="row">Policies with no user or group restriction</th><td>{{ preview.all_users_policies }}</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p class="hint">No Netskope call has been made for the expansion yet. Starting it reads the tenant's users once (about one request per 200 users, only if a group is involved), then looks up each group by name and reads its members, and builds the file in memory. A policy with no users, groups or units is listed once as ALL_USERS and is not expanded; organizational units are listed, not expanded. A group that cannot be resolved appears as an UNRESOLVED row with the reason; a group that exists but has no members appears as an EMPTY row. One export is limited to {{ max_calls }} API calls and {{ max_rows }} rows.</p>
+
+<details>
+  <summary>The {{ selected|length }} selected polic{{ "y" if selected|length == 1 else "ies" }}</summary>
+  <ul>
+    {% for v in selected %}<li>{{ v.name or "(unnamed policy)" }} <span class="hint">(id {{ v.rule_id }}, {{ v.action }})</span></li>{% endfor %}
+  </ul>
+</details>
+
+<form method="post" action="{{ action }}" class="stacked-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  {% for v in selected %}<input type="hidden" name="rule_id" value="{{ v.rule_id }}">{% endfor %}
+  <button type="submit">Start export</button>
+</form>
+
+{% include "partials/back_link.html" %}
+{% endblock %}

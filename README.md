@@ -2,7 +2,7 @@
 
 AS4PUR (Automation System for Private App Definition, User Provision, and RTP Creation) is an internal web application for engineers who administer Netskope tenants. It turns administration tasks that are otherwise done with scripts or by hand in the Netskope console - bulk-creating private apps and access policies, provisioning users, checking device posture, exporting tenant data - into guided steps in a browser: you review what will change before anything is written, and every run is recorded in an audit history. It is a FastAPI application with server-rendered Jinja2 pages and a SQLite database.
 
-It is built for a private network (LAN, VPN or zero-trust access) behind a TLS-terminating reverse proxy. **Do not expose it to the internet.** Netskope tenant names and API tokens are typed in by the operator for each run and are never stored.
+It is built for a private network (LAN, VPN or zero-trust access) behind a TLS-terminating reverse proxy. **Do not expose it to the internet.** API tokens are typed in by the operator for each run and are never stored. Tenant names are typed in for each run too and are not kept as settings or defaults, but the name is recorded in the audit history and job records of each run.
 
 ## Demo video (4 min)
 
@@ -19,9 +19,44 @@ Six operations, each started from the dashboard:
 - **User provision (Local Group / User Import)** - create SCIM users, and optionally a group, from a CSV or Excel file in a tenant that has no Entra/SCIM sync of its own, with a validation step and a review before anything is written.
 - **Device Posture Validation** - read-only: look up a user's devices and their posture status together with the tenant's device classification rules, or upload a device's `nsdebug.log` to see which posture checks it reports.
 - **User Lookup** - read-only: look up a user by email, UPN or hostname and see their user-management record, their devices, and which Private Access (NPA) policy rules apply to each device.
-- **Data Export** - read-only: export private apps (including protocols and ports) and users and groups to CSV.
+- **Data Export** - read-only, three exports to CSV: private apps (including protocols and ports); users and groups; and **users per NPA policy** - pick one or more Private Access policies and get one file listing who each applies to (its direct users, the members of its groups looked up by name and expanded, and its organizational units), with any group that cannot be resolved shown as an `UNRESOLVED` row. The last one runs in the background with a progress bar, and needs a token that can read NPA policies, SCIM groups **and** users (users are only read when a chosen policy uses a group).
 
 Around the operations: a real login (accounts are created by an administrator, there is no self-registration), an audit history of every run with a CSV export, administrator pages for invites and user management, and a built-in Help page.
+
+### Data Export
+
+Read-only: nothing is written to the tenant. After entering the tenant and token, the Data Export page offers three exports: **Private apps**, **Users and groups**, and **Users per NPA policy**.
+
+**Users per NPA policy** answers "who does this policy apply to?". You load the tenant's Private Access policies, pick one or more from a searchable list (name, id, action, an enabled/disabled badge, and how many direct users and groups each names), check a preview of what the run will do, and start it. It runs in the background with a progress bar, then offers a CSV download and shows any warnings. Each run leaves one entry in the audit history (who, when, the tenant name, the policy and row counts, the status; never the token, a user, a group or a policy name), and each download adds an audit-log row (who, when, tenant, row count).
+
+The token needs three read permissions, and a missing one stops the run with a message and no file:
+
+- **NPA policies** - to read the policy list.
+- **SCIM groups** - to look each group up by name (`displayName`) and read its members.
+- **Users** - to turn the SCIM member ids into email addresses. This is only read when a chosen policy uses a group.
+
+CSV columns, in this order (UTF-8 with a BOM; the file is named `as4pur-npa-policy-users-<UTC timestamp>.csv` and never contains the tenant name):
+
+| Column | Meaning |
+|---|---|
+| `policy_name`, `policy_id` | The policy. |
+| `action` | As the policy states it: `allow`, `block`, or another value such as `periodic_reauth`. |
+| `enabled` | `true` if the policy's `enabled` field is `"1"`, `false` if it is `"0"`. Anything else (field missing, empty, another type or value) is `unknown`; it is never guessed. |
+| `user` | The user's email address. Empty on organizational-unit rows and on `UNRESOLVED` and `EMPTY` rows. |
+| `via` | `direct` (named in the policy), `group` (a member of a group the policy names), `organization_unit`, or `all_users`. |
+| `group_name` | The group, or the organizational unit; empty on direct rows. |
+| `status` | `OK`, `UNRESOLVED`, `EMPTY` or `ALL_USERS` (see below). |
+| `reason` | Empty unless `status` is `UNRESOLVED` or `EMPTY`, where it says why. |
+
+- **`UNRESOLVED`** - something the policy names could not be turned into users: a group not found by name, a name shared by two groups, members that SCIM did not return, a member that is not in the tenant's user list, or an entry that could not be read. The row has an empty `user` and the explanation in `reason`, the run page shows a warning, and the rest of the file is still produced. Nothing is dropped and nothing is guessed.
+- **`EMPTY`** - the group was found and read, and it has no members: membership *was* determined and is zero. One row with `via` = `group`, `group_name` set, an empty `user` and `reason` = `group has no members`. It is not the same as `UNRESOLVED` (membership could not be determined) and it does not raise a warning by itself; the run page counts it separately.
+- **`ALL_USERS`** - the policy names no users, groups or organizational units, so it does not restrict by user. One row, `user` = `ALL_USERS (no user/group restriction)`, `via` = `all_users`, `reason` empty.
+- **`enabled`** is informational: a disabled policy is still exported, so filter on the column if you only want enabled ones.
+- Nothing is merged across `via`: a user reachable directly and through two groups has three rows. A group that exists but has no members has one `EMPTY` row (see above), so it is never silently dropped.
+- A failed run stores and shows only a fixed message built from known parts: the phase (`loading policies`, `resolving users`, `expanding groups`, `building the file`), a short category (auth, scope, rate limit, server error, timeout, network, tls, rejected, unexpected reply, truncation/mismatch, limit) and the HTTP status code. Netskope's own error text is never stored, logged or shown, because it can echo a group name or mention an unrelated user.
+- Every list is read to the end and, wherever the tenant reports a total, checked against it (the policy list may come without one; the page says so); a short or inconsistent answer fails the run with an error instead of producing a partial file. Hard ceilings apply (2,000 API calls and 200,000 rows per export), and rate-limit (HTTP 429) answers are retried, waiting as long as Netskope asks or a short back-off.
+- The file lists email addresses, so handle it as sensitive data. It is held in process memory only, for 10 minutes, for the session that ran it, and is gone after a restart or logout. Until role enforcement is added, any signed-in account can run this export.
+- How a policy's group entries map to SCIM groups (by `displayName`) follows Netskope's documentation and mocked tests; it has not yet been confirmed against a real tenant. A group that does not resolve shows up as `UNRESOLVED`.
 
 ## Screenshots
 
@@ -35,7 +70,7 @@ Taken from a throwaway instance with an empty database and a demo account.
 
 *The sign-in page.*
 
-![AS4PUR dashboard after signing in: sidebar navigation, four status counters and one card for each of the five operations](docs/images/dashboard.png)
+![AS4PUR dashboard after signing in: sidebar navigation, four status counters and one card for each operation](docs/images/dashboard.png)
 
 *The dashboard: status counters and one card for each operation.*
 
@@ -257,7 +292,8 @@ The app has no health or liveness endpoint (`/health` and `/healthz` return 404)
 |---|---|---|
 | Users, sessions, audit log, jobs | SQLite file (`AS4PUR_DATABASE_PATH`) plus `-wal` and `-shm` files while running | The only data that must persist and be backed up. |
 | Uploads in progress | `AS4PUR_UPLOAD_TEMP_DIR` | Temporary; deleted after each run. |
-| Netskope tokens, tenant names in a wizard, Data Export files | Process memory only | Lost on restart, logout or expiry. Never on disk. |
+| Netskope tokens, Data Export files | Process memory only | Lost on restart, logout or expiry. Never on disk. |
+| Tenant names | Typed for each run and held in memory while a wizard is open; also recorded in the SQLite audit history and job records (`jobs.tenant`, `audit_log.tenant`) | Never a setting or a default. The name is the only tenant detail kept as such; the results of a run (per-item outcomes) are kept in its job record. |
 | Browser | Cookies only (`as4pur_session`, login/registration CSRF cookies, a language preference cookie) | No local storage. |
 
 Both default paths are under `./data/`, inside the checkout but ignored by git. For a server, either keep `data/` on a persistent disk or set the two paths to a persistent location outside the code tree. Whatever you choose, the service must be able to write there (see `ReadWritePaths` in the systemd unit).
@@ -315,7 +351,7 @@ Use the same layout and the same steps as A on an Ubuntu VM, with these differen
 ## nginx notes
 
 - `client_max_body_size 55m` is already set in `deploy/nginx_as4pur.conf`. It must stay above `AS4PUR_NSDEBUG_UPLOAD_MAX_BYTES` (50 MiB), otherwise nginx answers large uploads with its own bare 413 page. If you raise the app limit, raise this too, then reload nginx.
-- **`proxy_read_timeout` is not set**, so nginx's default of 60 seconds applies. Data Export runs a whole export in one request. Measured against a small test tenant, each page of 200 users costs about 1.7 seconds (the API call plus the 0.3 second pause the client keeps between calls), so about 30 pages fit in 60 seconds. That figure comes from one small tenant and is an estimate for larger ones. A tenant with several thousand users can exceed that; nginx then returns a 504 even though the export may finish on the server, and the result is not shown. Add `proxy_read_timeout 300s;` to `location /` for larger tenants (and raise the idle timeout on any load balancer). `[not executed]`
+- **`proxy_read_timeout` is not set**, so nginx's default of 60 seconds applies. Data Export's private-apps and users-and-groups exports run a whole export in one request (users per NPA policy runs as a background job and is not bound by this timeout). Measured against a small test tenant, each page of 200 users costs about 1.7 seconds (the API call plus the 0.3 second pause the client keeps between calls), so about 30 pages fit in 60 seconds. That figure comes from one small tenant and is an estimate for larger ones. A tenant with several thousand users can exceed that; nginx then returns a 504 even though the export may finish on the server, and the result is not shown. Add `proxy_read_timeout 300s;` to `location /` for larger tenants (and raise the idle timeout on any load balancer). `[not executed]`
 - One application worker only, as above.
 - FastAPI's interactive documentation (`/docs`, `/redoc`) and `/openapi.json` are **disabled by default** (the routes do not exist, so they answer 404; checked in the fresh clone). Turn them on only on a development machine with `AS4PUR_ENABLE_API_DOCS=1`. If you want a second layer anyway, block them at the proxy: `location ~ ^/(docs|redoc|openapi\.json)$ { return 404; }` `[not executed]`.
 

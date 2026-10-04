@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Data Export — {{ app_name }}{% endblock %}
+{% block content %}
+<h1>Data Export</h1>
+<p class="step-indicator">Users per NPA policy &middot; {% if state in ("pending", "running") %}Export running{% elif state == "failed" %}Export failed{% else %}Export finished{% endif %}</p>
+
+<div id="job-status">
+  <p>Status: <span id="job-status-text">{{ state }}</span></p>
+  <progress id="job-progress" max="{{ job.total_items or 1 }}" value="{{ job.processed_items }}"></progress>
+  <p><span id="job-counts">{{ job.success_count }} succeeded &middot; {{ job.skipped_count }} skipped &middot; {{ job.failed_count }} failed</span> of <span id="job-total">{{ job.total_items }}</span> steps</p>
+</div>
+
+{% if state in ("pending", "running") %}
+<p class="hint">This page updates itself. The file is offered here as soon as the export has finished; you can leave this page open.</p>
+
+{% elif state == "failed" %}
+<div class="alert alert-error" role="alert">{{ error_text or "The export failed." }}</div>
+<p>No file was produced, so an incomplete export can never be mistaken for a complete one.</p>
+<p><a href="{{ back_url }}">&larr; Back to Data Export</a></p>
+
+{% elif held %}
+{% set result = held.result %}
+{% if result.warnings %}
+<div class="warnings-block">
+  <strong>Warnings</strong>
+  <ul>{% for w in result.warnings %}<li>{{ w }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+<h2>What was read</h2>
+<div class="table-scroll">
+<table class="data-table">
+  <tbody>
+    <tr><th scope="row">Policies exported</th><td>{{ result.summary.policies }}</td></tr>
+    <tr><th scope="row">Rows</th><td>{{ result.summary.rows }}</td></tr>
+    {% set group_notes = [] %}
+    {% if result.summary.groups_unresolved %}{% set _ = group_notes.append(result.summary.groups_unresolved ~ " unresolved") %}{% endif %}
+    {% if result.summary.groups_empty %}{% set _ = group_notes.append(result.summary.groups_empty ~ " empty") %}{% endif %}
+    <tr><th scope="row">Groups expanded</th><td>{{ result.summary.groups_expanded }}{% if group_notes %} ({{ group_notes|join(", ") }}){% endif %}</td></tr>
+    <tr><th scope="row">Unresolved rows</th><td>{{ result.summary.unresolved_rows }}</td></tr>
+    <tr><th scope="row">Empty-group rows</th><td>{{ result.summary.empty_rows }}</td></tr>
+    <tr><th scope="row">Users read for matching</th><td>{% if result.summary.directory_users is none %}not needed (no group was involved){% else %}{{ result.summary.directory_users }}{% endif %}</td></tr>
+    <tr><th scope="row">API calls</th><td>{{ result.summary.api_calls }}</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2>Download</h2>
+<ul class="evidence-list">
+  <li><a class="btn-outline" href="{{ download_href }}">Download CSV</a> <span class="hint">{{ result.file.filename }} &middot; {{ result.file.rows }} row{{ "s" if result.file.rows != 1 else "" }}</span></li>
+</ul>
+<p class="hint">Columns: policy_name, policy_id, action (as the policy states it: allow, block, or another value such as periodic_reauth), enabled (true or false as the policy states it, or unknown when the policy does not say), user, via (direct, group, organization_unit or all_users), group_name (the group, or the organizational unit on its rows), status (OK, UNRESOLVED, EMPTY or ALL_USERS) and reason. UNRESOLVED means membership could not be determined: the row has an empty user and says in reason what could not be resolved. EMPTY means the group was resolved and has no members: one row with an empty user and the reason "group has no members". Reason is empty on every other row.</p>
+<p class="hint">This file stays available for {{ ttl_minutes }} minutes, held in memory only &mdash; it is never saved on the server and only this session can download it. After that, run the export again.</p>
+
+{% else %}
+<div class="alert alert-warn">This export finished, but its file is no longer available (it is only kept for {{ ttl_minutes }} minutes, in memory, for the session that ran it). Run the export again.</div>
+<p><a href="{{ back_url }}">&larr; Back to Data Export</a></p>
+{% endif %}
+
+<p class="hint"><a href="/jobs/{{ job.id }}">Run details in Audit History</a></p>
+
+{% if state in ("pending", "running") %}
+{% include "partials/back_link.html" %}
+{% endif %}
+<script src="/static/js/job-poll.js" data-job-id="{{ job.id }}"></script>
+{% endblock %}
