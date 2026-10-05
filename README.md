@@ -265,7 +265,7 @@ There are no default accounts. Create the first administrator on the host:
 .venv/bin/python scripts/create_user.py <username> admin
 ```
 
-Then open `https://<your-host>/login`. An administrator invites everyone else from `/admin` (invite links are single-use). Invites are only accepted for the email domains listed in `AS4PUR_INVITE_ALLOWED_DOMAINS`; set it in `.env` and restart the app before inviting anyone.
+Then open `https://<your-host>/login` (the address of the nginx proxy in front of the app). If you started the app directly with the command under "Run" below and have no proxy yet, open `http://127.0.0.1:8000/login` instead: uvicorn itself serves plain HTTP, so an `https://` address fails there. An administrator invites everyone else from `/admin` (invite links are single-use). Invites are only accepted for the email domains listed in `AS4PUR_INVITE_ALLOWED_DOMAINS`; set it in `.env` and restart the app before inviting anyone.
 
 If login seems not to stick when you test over plain `http://` at a hostname or LAN address, set `AS4PUR_SECURE_COOKIES=false` in `.env`, restart, and set it back to `true` for real use. (`http://127.0.0.1` is exempt in modern browsers, so it will not show the problem.)
 
