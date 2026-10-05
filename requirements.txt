@@ -46,7 +46,7 @@ pyyaml==6.0.3
 starlette==1.6.0
 typing-extensions==4.16.0
 typing-inspection==0.4.4
-urllib3==2.7.0
+urllib3==2.8.0
 watchfiles==1.2.0
 # websockets 17 needs Python 3.11 or newer: it has no wheel for 3.10 and cannot be installed there.
 websockets==17.1
