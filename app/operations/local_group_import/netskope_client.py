@@ -23,7 +23,7 @@ NOT `Netskope-API-Token` - confirmed real, different from every other
 endpoint this project has touched. Base URL still follows AS4PUR's own
 tenant-input convention (bare tenant name, e.g. "my-tenant", not a full
 domain) via netskope_http.base_url() - the reference script's own
-`normalize_tenant()` expected a full domain (e.g. "jakarta.goskope.com")
+`normalize_tenant()` expected a full domain (e.g. "<tenant>.goskope.com")
 as input, which would be inconsistent with how every other operation in
 this app takes the tenant name.
 """
