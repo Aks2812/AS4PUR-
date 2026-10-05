@@ -38,8 +38,8 @@ def identity_filter(value: str, field: str = "accounts.userName") -> dict:
     CONFIRMED on a real tenant: "eq" is case-sensitive, but "sw" and "co" are
     case-insensitive (lower case input matched a name stored with a capital).
     So query with "sw" using the lower-cased value, then keep only exact matches
-    on the portal side with pick_exact(). "sw" (not "co") so that user@corp.com
-    cannot pull in unrelated names such as xuser@corp.com.
+    on the portal side with pick_exact(). "sw" (not "co") so that user@example.com
+    cannot pull in unrelated names such as xuser@example.com.
     """
     return {"and": [{field: {"sw": value.lower()}}, {"accounts.deleted": {"eq": False}}]}
 
@@ -54,7 +54,7 @@ USER_PROJECTION = ["id", "givenName", "familyName", "emails", "accounts.userName
 
 
 # Fields tried in order until one finds the user. The UPN often differs from the email
-# (user.one@corp.local vs User.One@corp.example), so a typed email may only match "emails".
+# (user.one@example.org vs User.One@example.com), so a typed email may only match "emails".
 IDENTITY_FIELDS = ("accounts.userName", "emails", "accounts.emails")
 
 
@@ -68,7 +68,7 @@ def getusers_body(value: str, page_size: int = 20, projection: list[str] | None 
 def pick_exact(rows: list[dict], value: str) -> list[dict]:
     """Keep users whose userName or email equals value, ignoring case.
 
-    sw can also return longer names (a@b.com matches a@b.com.au), so an exact,
+    sw can also return longer names (user@example.com matches user@example.com.test), so an exact,
     case-insensitive comparison is required before trusting a hit.
     """
     want = value.lower()

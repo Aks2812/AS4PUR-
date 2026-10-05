@@ -87,12 +87,12 @@ def normalize_host_token(tok, warnings, row_no):
         warnings.append(f"Row {row_no}: malformed CIDR '{tok}', skipped this token")
         return []
 
-    # Full dotted-to-dotted range, e.g. 172.15.10.151-172.15.10.152
+    # Full dotted-to-dotted range, e.g. 192.0.2.151-192.0.2.152
     m = RE_FULL_RANGE.match(tok)
     if m:
         return expand_range(m.group(1), m.group(2), warnings, row_no)
 
-    # Shorthand last-octet range, e.g. 172.16.10.11-12
+    # Shorthand last-octet range, e.g. 198.51.100.11-12
     m = RE_SHORT_RANGE.match(tok)
     if m:
         prefix, start_oct, end_oct = m.group(1), m.group(2), m.group(3)
@@ -109,9 +109,9 @@ def normalize_host_token(tok, warnings, row_no):
         warnings.append(f"Row {row_no}: '{tok}' looks like an IP but has an out-of-range octet, skipped this token")
         return []
 
-    # Labeled host, e.g. "LABEL-172.16.1.12/32" - a text label prefixed onto
+    # Labeled host, e.g. "LABEL-203.0.113.12/32" - a text label prefixed onto
     # an IP/CIDR. Must be checked BEFORE the FQDN fallback below: a labeled
-    # host with no CIDR suffix (e.g. "LABEL-172.16.1.12") would otherwise
+    # host with no CIDR suffix (e.g. "LABEL-203.0.113.12") would otherwise
     # incorrectly match the FQDN pattern and pass through with the label
     # still attached, which Netskope would not accept as a valid destination.
     m = RE_LABELED_HOST.match(tok)
