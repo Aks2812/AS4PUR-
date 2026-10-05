@@ -22,8 +22,10 @@ Facts this relies on, and where they were seen:
     `Netskope-API-Token`; one token typed per run has to carry both scopes.
   - SCIM list responses carry totalResults / startIndex / itemsPerPage / Resources; a group
     resource fetched by id returns `members` as [{"value": <scim user id>}].
-UNVERIFIED against a live tenant: the exact shape of a rule's `userGroups` entries, and whether
-SCIM returns `members` for non-SCIM (Local / AD) groups. Both degrade to visible UNRESOLVED rows.
+Checked once against a real production tenant, for a group-based policy: the number of users
+exported matched the count in the console. NOT verified: Local and AD group types (whether SCIM
+returns `members` for them) and other tenants. Whatever does not resolve degrades to visible
+UNRESOLVED rows.
 
 Calls are counted when they are made (one per logical call; the retries inside `_call` are not
 counted separately).

@@ -265,7 +265,7 @@ There are no default accounts. Create the first administrator on the host:
 .venv/bin/python scripts/create_user.py <username> admin
 ```
 
-Then open `https://<your-host>/login`. An administrator invites everyone else from `/admin` (invite links are single-use). Invites are only accepted for the email domains listed in `AS4PUR_INVITE_ALLOWED_DOMAINS`; set it in `.env` and restart the app before inviting anyone.
+Then open `https://<your-host>/login` (the address of the nginx proxy in front of the app). If you started the app directly with the command under "Run" below and have no proxy yet, open `http://127.0.0.1:8000/login` instead: uvicorn itself serves plain HTTP, so an `https://` address fails there. An administrator invites everyone else from `/admin` (invite links are single-use). Invites are only accepted for the email domains listed in `AS4PUR_INVITE_ALLOWED_DOMAINS`; set it in `.env` and restart the app before inviting anyone.
 
 If login seems not to stick when you test over plain `http://` at a hostname or LAN address, set `AS4PUR_SECURE_COOKIES=false` in `.env`, restart, and set it back to `true` for real use. (`http://127.0.0.1` is exempt in modern browsers, so it will not show the problem.)
 
@@ -428,6 +428,10 @@ A backup contains user accounts (password hashes), the audit log and job history
 - **Netskope tokens:** entered per operation, kept only in process memory, dropped at logout or expiry, and never written to the database, logs or audit records. Data Export files are built in memory and are not written to disk.
 - **Uploads:** type and size limits are enforced before parsing; temporary files are deleted after processing.
 
+## Security policy
+
+To report a vulnerability, read [SECURITY.md](SECURITY.md). Please use GitHub private vulnerability reporting, not a public issue, and leave real tenant names, tokens and user data out of the report.
+
 ## Known limitations
 
 Facts about the current version, each checked against the code:
@@ -451,4 +455,15 @@ deploy/             example systemd unit, nginx configuration, deployment notes
 deploy/docker/      nginx configuration and entrypoint for the Docker setup
 Dockerfile, docker-compose.yml, deploy.sh   the Docker setup ("Installation with Docker")
 docs/               design notes for the UI; docs/images/ holds the README screenshots
+.github/            Dependabot configuration
+LICENSE, SECURITY.md, THIRD_PARTY_NOTICES.md   the licence, the security policy, and notices for bundled third-party files
 ```
+
+## License
+
+AS4PUR is released under the [MIT License](LICENSE). The bundled fonts, flag images and icons come from other projects and keep their own licences; they are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+## Credits
+
+- [Prospal](https://github.com/Prospal) - the User Lookup operation and the Docker Compose setup.
+- Maintained by [Aks2812](https://github.com/Aks2812).

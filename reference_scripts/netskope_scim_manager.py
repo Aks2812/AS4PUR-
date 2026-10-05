@@ -18,7 +18,7 @@ SCIM_ENTERPRISE_USER_SCHEMA = "urn:ietf:params:scim:schemas:extension:enterprise
 SCIM_GROUP_SCHEMA = "urn:ietf:params:scim:schemas:core:2.0:Group"
 SCIM_PATCH_SCHEMA = "urn:ietf:params:scim:api:messages:2.0:PatchOp"
 TOKEN_FILE_NAME = ".scim_token"
-DEFAULT_TENANT = "jakarta.goskope.com"
+DEFAULT_TENANT = "<tenant>.goskope.com"
 
 
 def read_excel_column_a(file_path: str) -> list[str]:
@@ -122,7 +122,7 @@ class ScimClient:
             return exc.code, parsed_error
         except ValueError as exc:
             raise RuntimeError(
-                "Invalid URL generated. Check tenant/domain format (example: jakarta.goskope.com)."
+                "Invalid URL generated. Check tenant/domain format (example: <tenant>.goskope.com)."
             ) from exc
         except error.URLError as exc:
             raise ConnectionError(f"Network error: {exc.reason}") from exc
@@ -475,7 +475,7 @@ def main() -> None:
         tenant = tenant_input or DEFAULT_TENANT
         if validate_tenant(tenant):
             break
-        print("Invalid tenant/domain. Use only domain format, e.g. jakarta.goskope.com (no spaces).")
+        print("Invalid tenant/domain. Use only domain format, e.g. <tenant>.goskope.com (no spaces).")
 
     saved_token = load_saved_token()
     if saved_token:

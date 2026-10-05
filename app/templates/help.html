@@ -4,21 +4,28 @@
 <h1>How {{ app_name }} works</h1>
 
 <h2>What this tool does</h2>
-<p>{{ app_name }} wraps three Netskope administration tasks that used to require running scripts by hand on a laptop, so they can be run from a browser instead: importing Private App Segments in bulk, creating access policies for a list of users, and (for tenants with no Entra ID/SCIM sync of their own) creating local users and groups.</p>
+<p>{{ app_name }} is an internal web application for engineers who administer Netskope tenants. It turns administration tasks that are otherwise done with scripts or by hand in the Netskope console - bulk-creating private apps and access policies, provisioning users, checking device posture, looking up users, exporting tenant data - into guided steps in a browser: you review what will change before anything is written, and every run is recorded in an audit history.</p>
 
 <h2>Every tenant and token is entered fresh, every time</h2>
 <p>No tenant settings or credentials are stored in this app. Each time you run an operation you provide the tenant name and an API token scoped for that operation. The token is used only for the duration of that run and is never saved anywhere - not to disk, not to the database, not to any log line. Logging out, or letting your session sit idle until it expires, clears it completely; you'll enter it again next time. The tenant name is not kept as a setting or a default either, but it is recorded in the audit history and job records of each run (see below), so you can tell which tenant a run was against.</p>
 
 <h2>Review before you commit</h2>
-<p>Every operation always shows a full review page first - what will be created, what will be skipped because it already exists, and what looks invalid - before anything is actually sent to Netskope. You have to explicitly confirm you've reviewed it before the final action becomes available. This exists because it caught real mistakes in this tool's predecessor scripts; nothing here removes that safeguard for convenience.</p>
+<p>Every operation that writes to Netskope always shows a full review page first - what will be created, what will be skipped because it already exists, and what looks invalid - before anything is actually sent to Netskope. You have to explicitly confirm you've reviewed it before the final action becomes available. This exists because it caught real mistakes in this tool's predecessor scripts; nothing here removes that safeguard for convenience.</p>
 
 <h2>Operations</h2>
-<h3>1. Private app definition</h3>
-<p>Detail added when this is built (Phase 1).</p>
+<p>Six operations, each started from the dashboard.</p>
+<h3>1. Private app definition (Private App Import)</h3>
+<p>Upload an Excel list of apps, choose the publishers, review a dry run that skips apps whose name or destination and port already exist, then create the rest in paced batches and check afterwards that they exist in the tenant.</p>
 <h3>2. RTP creation</h3>
-<p>Detail added when this is built (Phase 2).</p>
-<h3>3. User provision</h3>
-<p>Detail added when this is built (Phase 3).</p>
+<p>Resolve a list of users from an HR or directory export to their real Netskope email addresses, then create a Private Access policy rule for them (always created disabled, then re-read to confirm the stored users); users can also be added to an existing rule.</p>
+<h3>3. User provision (Local Group / User Import)</h3>
+<p>Create SCIM users, and optionally a group, from a CSV or Excel file in a tenant that has no Entra/SCIM sync of its own, with a validation step and a review before anything is written.</p>
+<h3>4. Device Posture Validation</h3>
+<p>Read-only: look up a user's devices and their posture status together with the tenant's device classification rules, or upload a device's <code>nsdebug.log</code> to see which posture checks it reports (optionally cross-referenced with the tenant's live classification rule).</p>
+<h3>5. User Lookup</h3>
+<p>Read-only: look up a user by email, UPN or hostname and see their user-management record, their devices, and which Private Access (NPA) policy rules apply to each device.</p>
+<h3>6. Data Export</h3>
+<p>Read-only, three exports to CSV: private apps (including protocols and ports); users and groups; and <strong>users per NPA policy</strong> - pick one or more Private Access policies and get one file listing who each applies to (its direct users, the members of its groups looked up by name and expanded, and its organizational units), with any group that cannot be resolved shown as an <code>UNRESOLVED</code> row. The last one runs in the background with a progress bar, and needs a token that can read NPA policies, SCIM groups <strong>and</strong> users (users are only read when a chosen policy uses a group).</p>
 
 <h2>Audit history</h2>
 <p>Every run of every operation is recorded - who ran it, when, against which tenant, and the outcome of every individual item - and can be exported as a CSV from that run's detail page. See <a href="/jobs">Audit History</a>.</p>

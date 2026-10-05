@@ -339,7 +339,7 @@ def fetch_client_status(tenant: str, token: str, email: str) -> list[dict]:
     """
     Real devices for one user, last 30 days, via a JQL-style `query`
     filter (confirmed working, CLAUDE.md 2026-09-22: `username eq
-    'x@y.com'`). `starttime`/`endtime` (epoch seconds) are this project's
+    'user@example.com'`). `starttime`/`endtime` (epoch seconds) are this project's
     own reasonable choice of parameter names for "a reasonable time
     window" - not independently confirmed as this specific endpoint's own
     time-window parameter names, since CLAUDE.md's note didn't specify

@@ -13,7 +13,7 @@ def build_template_workbook_bytes() -> bytes:
     ws = wb.active
     ws.title = "Private Apps"
     ws.append(["No", "App Name", "Hosts (IP/CIDR)", "Ports (Protocol/Port)"])
-    ws.append([1, "Example-App", "10.10.10.10, 10.10.20.0/24", "tcp/443, tcp/8000-8010"])
+    ws.append([1, "Example-App", "192.0.2.10, 198.51.100.0/24", "tcp/443, tcp/8000-8010"])
     buf = io.BytesIO()
     wb.save(buf)
     return buf.getvalue()

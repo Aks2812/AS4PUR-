@@ -551,7 +551,7 @@ def submit_group(
     # to submit straight into the rule payload); label = bracket-stripped
     # for readability. CLAUDE.md Section 9: this is where Private App
     # Import's port-segmentation fix pays off - the operator can tell
-    # `[172.1.1.4-SSH]` and `[172.1.1.4-LDAP]` apart at a glance.
+    # `[192.0.2.4-SSH]` and `[192.0.2.4-LDAP]` apart at a glance.
     app_names = sorted({a["app_name"] for a in apps if a.get("app_name")})
 
     return templates.TemplateResponse(
