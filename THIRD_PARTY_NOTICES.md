@@ -113,14 +113,3 @@ SOFTWARE.
 ```
 
 </details>
-
-## Logo
-
-| | |
-|---|---|
-| Files | `app/static/icons/as4pur-mark.svg` (the same file is also stored as `as4pur-mark.svg` at the repository root) |
-| Licence | none claimed |
-
-The file's embedded Content Credentials (a C2PA manifest in its `<metadata>` element, signed with an Anthropic content-signing certificate)
-state: "Claude provided this file at the request of a user and may have created or modified the file contents." The file contains no licence
-text, and no third-party licence is claimed for it. Editing or re-encoding the file would invalidate that manifest, so it is kept unchanged.
