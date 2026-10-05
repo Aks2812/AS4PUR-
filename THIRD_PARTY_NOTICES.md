@@ -73,16 +73,19 @@ SOFTWARE.
 
 | | |
 |---|---|
-| Where | inline SVG path data in `app/templates/partials/icons.html` (the `ti_icon` macro) |
+| Where | inline SVG path data in `app/templates/partials/icons.html` (the `ti_icon` macro), 17 icons |
 | Licence | MIT |
 | Source | Tabler Icons, outline set, https://tabler.io/icons (https://github.com/tabler/tabler-icons) |
 
 Evidence:
 
 - The comment above the macro in `icons.html` names Tabler Icons and the MIT licence.
-- 16 of the 17 icons in the macro have path data identical to a published revision of the same icon in the Tabler Icons repository
-  (14 match the current revision; `apps` and `info`, which is `info-circle` upstream, match revisions from 2025-12-14).
-- The 17th, `device-laptop`, matches no revision of that icon that could be found, so it is not claimed as Tabler's work here.
+- All 17 icons have path data identical, character for character, to the outline icon of the same name in a published Tabler Icons release
+  (`info` is `info-circle` upstream). Releases compared: v3.35.0, v3.36.0, v3.36.1, v3.37.0 and v3.48.0 (the latest when checked, 2026-10-05).
+- 16 of the 17 are identical in v3.36.1, v3.37.0 and v3.48.0. `apps` is identical to v3.35.0 and v3.36.0 only: Tabler rewrote the path data of
+  many icons in v3.36.1 ("icon optimizations"), and `apps` still has the earlier text.
+- The attributes the macro puts on each icon (`viewBox="0 0 24 24"`, `fill="none"`, `stroke="currentColor"`, `stroke-width="2"`, round line caps and joins)
+  are the ones Tabler's own outline SVG files carry.
 - The licence text below is the Tabler Icons repository's `LICENSE` file.
 
 <details>
