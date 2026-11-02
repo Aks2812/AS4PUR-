@@ -36,7 +36,7 @@ greenlet==3.5.5
 h11==0.16.0
 httptools==0.8.0
 idna==3.19
-mako==1.4.1
+mako==1.4.3
 markupsafe==3.0.3
 pycparser==3.0
 pydantic==2.13.5
