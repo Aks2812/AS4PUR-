@@ -1,6 +1,6 @@
 # AS4PUR application image. Started by docker-compose.yml behind the nginx
 # container, which terminates TLS; this container is never published directly.
-FROM python:3.12-slim
+FROM python:3.15-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
